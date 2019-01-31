@@ -34,7 +34,7 @@ Install `rustup`, add default toolchain as stable and add the appropriate target
 ```
 $ curl https://sh.rustup.rs -sSf | sh
 $ rustup default stable
-$ rustup target add thumb7em-none-eabihf
+$ rustup target add thumbv7em-none-eabihf
 ```
 
 Install `bobbin-cli` to simplify speaking with the MCU via serial/UART.
