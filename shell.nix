@@ -8,7 +8,7 @@ let
 
     src = fetchurl {
       url = "https://www.segger.com/downloads/jlink/JLink_Linux_x86_64.deb";
-      sha256 = "0d0hs5bcff2il0i44hg2d7cs33p1kr8zqclpmi2a5p7cwbnaqmc8";
+      sha256 = "0l70v6hhj357hkhxyiayc29z544x21kaaphxlj5jx170jyc590bj";
       curlOpts = "-d accept_license_agreement=accepted -d confirm=yes";
     };
 
@@ -31,7 +31,7 @@ let
   # TODO: package all binaries in jlink
   gdbServer = buildFHSUserEnv rec {
     name = "JLinkGDBServerCLExe";
-    runScript = "${jlink}/opt/SEGGER/JLink_V640b/JLinkGDBServerCLExe";
+    runScript = "${jlink}/opt/SEGGER/JLink_V6*/JLinkGDBServerCLExe";
 
     targetPkgs = pkgs: with pkgs; [
       udev
@@ -40,7 +40,7 @@ let
 
   rttClient = buildFHSUserEnv rec {
     name = "JLinkRTTClientExe";
-    runScript = "${jlink}/opt/SEGGER/JLink_V640b/JLinkRTTClientExe";
+    runScript = "${jlink}/opt/SEGGER/JLink_V6*/JLinkRTTClientExe";
 
     targetPkgs = pkgs: with pkgs; [
       udev
@@ -49,7 +49,7 @@ let
 
   JLinkExe = buildFHSUserEnv rec {
     name = "JLinkExe";
-    runScript = "${jlink}/opt/SEGGER/JLink_V640b/JLinkExe";
+    runScript = "${jlink}/opt/SEGGER/JLink_V64*/JLinkExe";
 
     targetPkgs = pkgs: with pkgs; [
       udev
