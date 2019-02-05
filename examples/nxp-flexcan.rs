@@ -1,6 +1,6 @@
 //! An (almost) direct C-to-Rust rewrite of the S32K144 FlexCAN example from NXP's S32 SDK. Sets up
 //! communication over CAN0 and continuously transmits messages. Sends CAN frames with a speed of
-//! 500 kbit/s, SJW = 4, Tseg1 = 11, Tseg2 = 4.
+//! 50 kbit/s, SJW = 4, Tseg1 = 11, Tseg2 = 4.
 //!
 //! Differences from C example:
 //! * CAN freeze mode is seemingly not entered correctly.
