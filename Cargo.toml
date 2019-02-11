@@ -7,5 +7,10 @@ edition = "2018"
 [dependencies]
 cortex-m = "0.5.0"
 panic-halt = "0.2.0"
-cortex-m-rt = "0.6.3"
+cortex-m-rt = "0.6.7"
 s32k144 = "0.10.0"
+embedded_types = "0.3.2"
+
+[dependencies.s32k144evb]
+path = "lib/s32k144evb"
+default-features = false

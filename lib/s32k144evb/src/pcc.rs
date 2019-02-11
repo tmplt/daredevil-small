@@ -41,8 +41,9 @@ pub struct PortC<'a> {
     pcc: &'a s32k144::pcc::RegisterBlock,
 }
 
+/// NOTE(pub): Daredevil specific, see `src/panic.rs`.
 pub struct PortD<'a> {
-    pcc: &'a s32k144::pcc::RegisterBlock,
+    pub pcc: &'a s32k144::pcc::RegisterBlock,
 }
 
 pub struct PortE<'a> {
