@@ -1,0 +1,5 @@
+A basic analog to digital conversion is performed:
+*	ADC configured for SW trigger, continuous mode
+*	ADC channel 10 is selected for input
+*	Result is scaled to 0 - 5000 mV
+*	LEDs are lit on evaluation board pre result
