@@ -2,8 +2,8 @@
 #![no_main]
 #![no_std]
 
-// Define a panic handler.
 extern crate panic_halt;
+extern crate s32k144;
 
 use cortex_m_rt::entry;
 
