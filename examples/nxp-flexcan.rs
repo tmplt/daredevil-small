@@ -57,17 +57,10 @@ unsafe fn main() -> ! {
     // NormalRUNmode_80Mhz
     #[rustfmt::skip]
     p.SCG.rccr.modify(|_, w| {
-<<<<<<< HEAD
         w.scs().bits(6) // System PLL
          .divcore().bits(0b01) // Divide Core Clock by 2
          .divbus().bits(0b01) // Divide Bus Clock by 2
          .divslow().bits(0b10) // Divide Slow Clock by 3
-=======
-        w.scs().bits(6)
-            .divcore().bits(0b01)
-            .divbus().bits(0b01)
-            .divslow().bits(0b10)
->>>>>>> 6d016b213322c850206a00e38db72e4b7b1d0447
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // Ensure clock is configured to System PLL
 
