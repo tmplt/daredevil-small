@@ -22,7 +22,7 @@ unsafe fn main() -> ! {
     let p = s32k144::Peripherals::take().unwrap();
 
     // Disable watchdog
-    p.WDOG.cnt.write(|w| w.bits(0xd928c520)); // unlock
+    p.WDOG.cnt.write(|w| w.bits(0xd928_c520)); // unlock
     p.WDOG.toval.write(|w| w.bits(0xffff)); // maximum timeout value
     p.WDOG.cs.write(|w| {
         w.en()._0() // Disable Watchdog
@@ -50,7 +50,7 @@ unsafe fn main() -> ! {
         w.splldiv1().bits(0b010) // Divide by 2
             .splldiv2().bits(0b011) // Divide by 4
     });
-    p.SCG.spllcfg.write(|w| w.mult().bits(0b11000)); // Muliply factor 40
+    p.SCG.spllcfg.write(|w| w.mult().bits(0b1_1000)); // Muliply factor 40
     while p.SCG.spllcsr.read().lk().is_1() {} // Ensure Control Status Register is unlocked
     p.SCG.spllcsr.write(|w| w.spllen()._1()); // Enable CSR
     while p.SCG.spllcsr.read().spllvld().is_1() {}
@@ -76,10 +76,10 @@ unsafe fn main() -> ! {
 
     // Configure nominal phase
     p.CAN0.cbt.write(|w| {
-        w.epseg2().bits(0b01111) // Bit length of phase segment 2
-            .epseg1().bits(0b01111) // Bit length of phase segment 2
-            .epropseg().bits(0b101110) // Bit time length of propagation segment
-            .erjw().bits(0b01111) // Extended Resync Jump Width
+        w.epseg2().bits(0b0_1111) // Bit length of phase segment 2
+            .epseg1().bits(0b0_1111) // Bit length of phase segment 2
+            .epropseg().bits(0b10_1110) // Bit time length of propagation segment
+            .erjw().bits(0b0_1111) // Extended Resync Jump Width
             .epresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
             .btf()._1() // Enable bit timing format
     });
@@ -87,16 +87,16 @@ unsafe fn main() -> ! {
     // Configure data phase
     p.CAN0.fdcbt.write(|w| {
         w.fpseg2().bits(0b011) // Bit time length of Fast Phase Segment 2
-            .fpseg1().bits(0b11) // Bit time length of Fast Phase Segment 1
-            .fpropseg().bits(0b00111) // Bit time length of the propagation segment
+            .fpseg1().bits(0b111) // Bit time length of Fast Phase Segment 1
+            .fpropseg().bits(0b0_0111) // Bit time length of the propagation segment
             .frjw().bits(0b011) // Number of time quanta per resynchronization
-            .fpresdiv().bits(0b00_0000_0010) // Ratio between PE clock and Sclock
+            .fpresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
     });
 
     p.CAN0.fdctrl.write(|w| {
-        w.tdcoff().bits(0b11111) // Transceiver Delay Compensation Offset
+        w.tdcoff().bits(0b1_1111) // Transceiver Delay Compensation Offset
             .tdcen()._1() // Enable TDC
-            .mdbsr0()._11() // 64 bytes per message buffer
+            .mbdsr0()._11() // 64 bytes per message buffer
             .fdrate()._1() // Enable Bit Rate Switch
     });
 
@@ -106,22 +106,28 @@ unsafe fn main() -> ! {
     }
     // init CAN0 16 msg buf filters
     for i in 0..16 {
-        p.CAN0.rximr[i].write(|w| w.bits(0xFFFFFFFF));
+        p.CAN0.rximr[i].write(|w| w.bits(0xFFFF_FFFF));
     }
 
     // Global acceptance mask: check all ID bits
-    p.CAN0.rxmgmask.write(|w| w.bits(0x1FFFFFFF));
+    p.CAN0.rxmgmask.write(|w| w.bits(0x1FFF_FFFF));
 
     // Message Buffer 4 - receive setup
-    p.CAN0.embedded_ram[(4 * MSG_BUF_SIZE) + 0].modify(|_, w| w.bits(0xC4000000));
+    p.CAN0.embedded_ram[(4 * MSG_BUF_SIZE) + 0].modify(|_, w| w.bits(0xC400_0000));
     // Msg buf 4, word 1: standard ID = 0x511
-    p.CAN0.embedded_ram[(4 * MSG_BUF_SIZE) + 1].modify(|_, w| w.bits(0x14440000));
+    p.CAN0.embedded_ram[(4 * MSG_BUF_SIZE) + 1].modify(|_, w| w.bits(0x1444_0000));
 
     // Enable CRC fix for ISO CAN FD
     p.CAN0.ctrl2.modify(|_, w| w.isocanfden()._1());
 
     // Negate FlexCAN 1 halt state & enable CAN FD for 32 MBs
     p.CAN0.mcr.write(|w| w.bits(0x0000081F));
+
+    // TODO: Lookup what is wrong with SVD2Rust in this case
+    //p.CAN0.mcr.write(|w| {
+    //    w.maxmb().bits(0b001_1111)
+    //        .fden()._1()
+    //});
 
     // Wait for FRZACK to clear and module ready
     while p.CAN0.mcr.read().frzack().is_1() {}
