@@ -6,7 +6,7 @@ use cortex_m_rt::entry;
 use s32k144;
 use s32k144evb::wdog;
 
-#[path="../src/panic.rs"]
+#[path = "../src/panic.rs"]
 mod panic;
 
 #[entry]

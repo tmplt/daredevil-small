@@ -3,9 +3,9 @@
 #![no_std]
 
 use cortex_m_rt::entry;
-use s32k144;
-use s32k144evb::{pcc::Pcc, wdog, spc, pcc};
 use embedded_types::io::Write;
+use s32k144;
+use s32k144evb::{pcc, pcc::Pcc, spc, wdog};
 
 #[path = "../src/panic.rs"]
 mod panic;
@@ -29,13 +29,7 @@ fn main() -> ! {
         soscdiv2: spc::SystemOscillatorOutput::Div1,
         ..Default::default()
     };
-    let spc = spc::Spc::init(
-        &p.SCG,
-        &p.SMC,
-        &p.PMC,
-        pc_config,
-    )
-    .unwrap();
+    let spc = spc::Spc::init(&p.SCG, &p.SMC, &p.PMC, pc_config).unwrap();
 
     let pcc = Pcc::init(&p.PCC);
     let _pcc_lpuart1 = pcc.enable_lpuart1(pcc::ClockSource::Soscdiv2).unwrap();

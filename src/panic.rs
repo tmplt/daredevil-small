@@ -19,6 +19,7 @@ use embedded_types::io::Write;
 use s32k144;
 use s32k144evb::{console, led, pcc, pcc::Pcc, spc};
 
+#[path = "utils.rs"]
 mod utils;
 
 #[inline(never)]

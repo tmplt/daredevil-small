@@ -26,16 +26,12 @@ unsafe fn main() -> ! {
     p.WDOG.toval.write(|w| w.bits(0xffff)); // maximum timeout value
     p.WDOG.cs.write(|w| w.bits(0x2100)); // disable watchdod
 
-    let _ = 0;
-
     // SOSC_init_8Mhz
     p.SCG.soscdiv.write(|w| w.bits(0x101));
     p.SCG.sosccfg.write(|w| w.bits(0x24));
     while p.SCG.sosccsr.read().lk().is_1() {} // Ensure SOSCCSR unlocked
     p.SCG.sosccsr.write(|w| w.bits(0x1));
     while p.SCG.sosccsr.read().soscvld().is_1() {}
-
-    let _ = 0;
 
     // SPLL_init_160Mhz
     while p.SCG.spllcsr.read().lk().is_1() {}
@@ -46,22 +42,15 @@ unsafe fn main() -> ! {
     p.SCG.spllcsr.write(|w| w.bits(0x1));
     while p.SCG.spllcsr.read().spllvld().is_1() {}
 
-    let _ = 0;
-
     // NormalRUNmode_80Mhz
+    #[rustfmt::skip]
     p.SCG.rccr.modify(|_, w| {
-        w.scs()
-            .bits(6)
-            .divcore()
-            .bits(0b01)
-            .divbus()
-            .bits(0b01)
-            .divslow()
-            .bits(0b10)
+        w.scs().bits(6)
+            .divcore().bits(0b01)
+            .divbus().bits(0b01)
+            .divslow().bits(0b10)
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // wait while clock is changed
-
-    let _ = 0; // TODO
 
     // ------------------- FLEXCAN0_init(void) -------------------
 

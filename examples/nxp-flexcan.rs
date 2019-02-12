@@ -11,11 +11,10 @@
 #![no_std]
 
 extern crate cortex_m_rt;
-extern crate s32k144;
 extern crate panic_halt;
+extern crate s32k144;
 
 use cortex_m_rt::entry;
-
 
 #[entry]
 unsafe fn main() -> ! {
@@ -43,24 +42,22 @@ unsafe fn main() -> ! {
     while p.SCG.spllcsr.read().spllvld().is_1() {}
 
     // NormalRUNmode_80Mhz
+    #[rustfmt::skip]
     p.SCG.rccr.modify(|_, w| {
         w.scs().bits(6)
-         .divcore().bits(0b01)
-         .divbus().bits(0b01)
-         .divslow().bits(0b10)
+            .divcore().bits(0b01)
+            .divbus().bits(0b01)
+            .divslow().bits(0b10)
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // wait while clock is changed
-
 
     // FLEXCAN0_init
     p.PCC.pcc_flex_can0.modify(|_, w| w.cgc()._1());
     p.CAN0.mcr.modify(|_, w| w.mdis()._1());
     p.CAN0.ctrl1.modify(|_, w| w.clksrc()._0());
-    p.CAN0.mcr.modify(|_, w| {
-        w.mdis()._0()
-         .frz()._1()
-         .halt()._1()
-    });
+    p.CAN0
+        .mcr
+        .modify(|_, w| w.mdis()._0().frz()._1().halt()._1());
     while p.CAN0.mcr.read().frzack().is_1() {}
     p.CAN0.ctrl1.write(|w| w.bits(0xdb0006));
     // for i in 0..128 {
@@ -70,12 +67,8 @@ unsafe fn main() -> ! {
     //     p.CAN0.rximr[i].write(|w| w.bits(0xffffffff));
     // }
     p.CAN0.rxmgmask.write(|w| w.bits(0x1fffffff));
-    p.CAN0.embedded_ram[4 * 4].modify(|_, w| {
-        w.bits(0x4000000)
-    });
-    p.CAN0.embedded_ram[4 * 4 + 1].modify(|_, w| {
-        w.bits(0x14440000)
-    });
+    p.CAN0.embedded_ram[4 * 4].modify(|_, w| w.bits(0x4000000));
+    p.CAN0.embedded_ram[4 * 4 + 1].modify(|_, w| w.bits(0x14440000));
     p.CAN0.mcr.write(|w| w.bits(0x1f));
     while p.CAN0.mcr.read().frzack().is_1() {}
     while !p.CAN0.mcr.read().notrdy().is_0() {}
