@@ -24,29 +24,36 @@ unsafe fn main() -> ! {
     // Disable watchdog
     p.WDOG.cnt.write(|w| w.bits(0xd928c520)); // unlock
     p.WDOG.toval.write(|w| w.bits(0xffff)); // maximum timeout value
-    p.WDOG.cs.write(|w| w.bits(0x2100)); // disable watchdod
-
-    let _ = 0;
+    p.WDOG.cs.write(|w| {
+        w.en()._0() // Disable Watchdog
+            .clk().bits(0b01) // Set Watchdog clock to LPO
+            .cmd32en()._1() // Enable 32-bit refresh/unlock support
+    });
 
     // SOSC_init_8Mhz
-    p.SCG.soscdiv.write(|w| w.bits(0x101));
-    p.SCG.sosccfg.write(|w| w.bits(0x24));
+    p.SCG.soscdiv.write(|w| {
+        w.soscdiv1().bits(0b001) // Divide by 1
+            .soscdiv2().bits(0b001) // Divide by 1
+    });
+    p.SCG.sosccfg.write(|w| {
+        w.bits(0x24) // XXX: Bit 6 is unused in this field.
+        //w.hgo()._1() // Set crystal oscillator for high gain
+    });
     while p.SCG.sosccsr.read().lk().is_1() {} // Ensure SOSCCSR unlocked
-    p.SCG.sosccsr.write(|w| w.bits(0x1));
-    while p.SCG.sosccsr.read().soscvld().is_1() {}
-
-    let _ = 0;
+    p.SCG.sosccsr.write(|w| w.soscen()._1());
+    while p.SCG.sosccsr.read().soscvld().is_1() {} // Validate enabling of SysOSC
 
     // SPLL_init_160Mhz
-    while p.SCG.spllcsr.read().lk().is_1() {}
-    p.SCG.spllcsr.write(|w| w.bits(0x0));
-    p.SCG.splldiv.write(|w| w.bits(0x302));
-    p.SCG.spllcfg.write(|w| w.bits(0x180000));
-    while p.SCG.spllcsr.read().lk().is_1() {}
-    p.SCG.spllcsr.write(|w| w.bits(0x1));
+    while p.SCG.spllcsr.read().lk().is_1() {} // Ensure the System Phase-locked loop is unlocked
+    p.SCG.spllcsr.write(|w| w.spllen()._0()); // Disable SPLL
+    p.SCG.splldiv.write(|w| {
+        w.splldiv1().bits(0b010) // Divide by 2
+            .splldiv2().bits(0b011) // Divide by 4
+    });
+    p.SCG.spllcfg.write(|w| w.mult().bits(0b11000)); // Muliply factor 40
+    while p.SCG.spllcsr.read().lk().is_1() {} // Ensure Control Status Register is unlocked
+    p.SCG.spllcsr.write(|w| w.spllen()._1()); // Enable CSR
     while p.SCG.spllcsr.read().spllvld().is_1() {}
-
-    let _ = 0;
 
     // NormalRUNmode_80Mhz
     p.SCG.rccr.modify(|_, w| {
@@ -61,25 +68,40 @@ unsafe fn main() -> ! {
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // wait while clock is changed
 
-    let _ = 0; // TODO
-
     // ------------------- FLEXCAN0_init(void) -------------------
 
     // FLEXCAN0_init
-    p.PCC.pcc_flex_can0.modify(|_, w| w.cgc()._1());
-    p.CAN0.mcr.modify(|_, w| w.mdis()._1());
-    p.CAN0.ctrl1.modify(|_, w| w.clksrc()._1());
-    p.CAN0.mcr.modify(|_, w| w.mdis()._0());
+    p.PCC.pcc_flex_can0.modify(|_, w| w.cgc()._1()); // Enable clock for CAN
+    p.CAN0.mcr.modify(|_, w| w.mdis()._1()); // Disable FlexCAN module
+    p.CAN0.ctrl1.modify(|_, w| w.clksrc()._1()); // Set oscillator clock to peripheral clock
+    p.CAN0.mcr.modify(|_, w| w.mdis()._0()); // Reenable FlexCAN module
     while p.CAN0.mcr.read().frzack().is_0() {}
 
     // Configure nominal phase
-    p.CAN0.cbt.write(|w| w.bits(0x802FB9EF));
+    p.CAN0.cbt.write(|w| {
+        w.epseg2().bits(0b01111) // Bit length of phase segment 2
+            .epseg1().bits(0b01111) // Bit length of phase segment 2
+            .epropseg().bits(0b101110) // Bit time length of propagation segment
+            .erjw().bits(0b01111) // Extended Resync Jump Width
+            .epresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
+            .btf()._1() // Enable bit timing format
+    });
 
     // Configure data phase
-    p.CAN0.fdcbt.write(|w| w.bits(0x00131CE3));
-    p.CAN0.fdctrl.write(|w| w.bits(0x80039F00));
+    p.CAN0.fdcbt.write(|w| {
+        w.fpseg2().bits(0b011) // Bit time length of Fast Phase Segment 2
+            .fpseg1().bits(0b11) // Bit time length of Fast Phase Segment 1
+            .fpropseg().bits(0b00111) // Bit time length of the propagation segment
+            .frjw().bits(0b011) // Number of time quanta per resynchronization
+            .fpresdiv().bits(0b00_0000_0010) // Ratio between PE clock and Sclock
+    });
 
-    let _ = 0;
+    p.CAN0.fdctrl.write(|w| {
+        w.tdcoff().bits(0b11111) // Transceiver Delay Compensation Offset
+            .tdcen()._1() // Enable TDC
+            .mdbsr0()._11() // 64 bytes per message buffer
+            .fdrate()._1() // Enable Bit Rate Switch
+    });
 
     // Clear 128 words RAM in module
     for i in 0..128 {
@@ -109,12 +131,12 @@ unsafe fn main() -> ! {
     while !p.CAN0.mcr.read().notrdy().is_0() {}
 
     // PORT_init
-    p.PCC.pcc_porte.modify(|_, w| w.cgc()._1());
-    p.PORTE.pcr4.modify(|_, w| w.mux()._101());
-    p.PORTE.pcr5.modify(|_, w| w.mux()._101());
-    p.PCC.pcc_portd.modify(|_, w| w.cgc()._1());
-    p.PORTD.pcr16.write(|w| w.bits(0x100));
-    p.PTD.pddr.modify(|_, w| w.bits(1 << 16));
+    p.PCC.pcc_porte.modify(|_, w| w.cgc()._1()); // Enable PortE
+    p.PORTE.pcr4.modify(|_, w| w.mux()._101()); // Maybe enable CAN RX
+    p.PORTE.pcr5.modify(|_, w| w.mux()._101()); // Maybe enable CAN TX
+    p.PCC.pcc_portd.modify(|_, w| w.cgc()._1()); // Enable PortD
+    p.PORTD.pcr16.write(|w| w.bits(0x100)); // Maybe enable Green LED
+    p.PTD.pddr.modify(|_, w| w.bits(1 << 16)); // Configure pin 16 to be output
 
     // just transmit messages in a loop down here
     loop {
