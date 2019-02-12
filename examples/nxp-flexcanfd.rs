@@ -56,15 +56,12 @@ unsafe fn main() -> ! {
     while p.SCG.spllcsr.read().spllvld().is_1() {}
 
     // NormalRUNmode_80Mhz
+    #[rustfmt::skip]
     p.SCG.rccr.modify(|_, w| {
-        w.scs()
-            .bits(6)
-            .divcore()
-            .bits(0b01)
-            .divbus()
-            .bits(0b01)
-            .divslow()
-            .bits(0b10)
+        w.scs().bits(6)
+            .divcore().bits(0b01)
+            .divbus().bits(0b01)
+            .divslow().bits(0b10)
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // wait while clock is changed
 

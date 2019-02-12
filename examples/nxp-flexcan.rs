@@ -11,11 +11,10 @@
 #![no_std]
 
 extern crate cortex_m_rt;
-extern crate s32k144;
 extern crate panic_halt;
+extern crate s32k144;
 
 use cortex_m_rt::entry;
-
 
 #[entry]
 unsafe fn main() -> ! {
@@ -56,14 +55,21 @@ unsafe fn main() -> ! {
     while p.SCG.spllcsr.read().spllvld().is_1() {}
 
     // NormalRUNmode_80Mhz
+    #[rustfmt::skip]
     p.SCG.rccr.modify(|_, w| {
+<<<<<<< HEAD
         w.scs().bits(6) // System PLL
          .divcore().bits(0b01) // Divide Core Clock by 2
          .divbus().bits(0b01) // Divide Bus Clock by 2
          .divslow().bits(0b10) // Divide Slow Clock by 3
+=======
+        w.scs().bits(6)
+            .divcore().bits(0b01)
+            .divbus().bits(0b01)
+            .divslow().bits(0b10)
+>>>>>>> 6d016b213322c850206a00e38db72e4b7b1d0447
     });
     while p.SCG.csr.read().scs().bits() != 6 {} // Ensure clock is configured to System PLL
-
 
     // FLEXCAN0_init
     p.PCC.pcc_flex_can0.modify(|_, w| w.cgc()._1()); // Enable clock for CAN
@@ -89,12 +95,8 @@ unsafe fn main() -> ! {
     //     p.CAN0.rximr[i].write(|w| w.bits(0xffffffff));
     // }
     p.CAN0.rxmgmask.write(|w| w.bits(0x1fffffff));
-    p.CAN0.embedded_ram[4 * 4].modify(|_, w| {
-        w.bits(0x4000000)
-    });
-    p.CAN0.embedded_ram[4 * 4 + 1].modify(|_, w| {
-        w.bits(0x14440000)
-    });
+    p.CAN0.embedded_ram[4 * 4].modify(|_, w| w.bits(0x4000000));
+    p.CAN0.embedded_ram[4 * 4 + 1].modify(|_, w| w.bits(0x14440000));
     p.CAN0.mcr.write(|w| w.maxmb().bits(0x1f)); // Sets the number of the last message buffer (4*5 = 20MB)
     while p.CAN0.mcr.read().frzack().is_1() {}
     while !p.CAN0.mcr.read().notrdy().is_0() {}
