@@ -35,9 +35,12 @@ unsafe fn main() -> ! {
         w.soscdiv1().bits(0b001) // Divide by 1
             .soscdiv2().bits(0b001) // Divide by 1
     });
+    // XXX: Document discrepancy: reference manual defines medium frequency range as 4Mhz - 8Mhz
+    // while the reference C implementation defines it as 1Mhz - 8Mhz.
     p.SCG.sosccfg.write(|w| {
-        w.bits(0x24) // XXX: Bit 6 is unused in this field.
-        //w.hgo()._1() // Set crystal oscillator for high gain
+        w.range()._10() // set medium frequency range (4Mhz - 8Mhz)
+            .hgo()._1()
+            .erefs()._1()
     });
     while p.SCG.sosccsr.read().lk().is_1() {} // Ensure SOSCCSR unlocked
     p.SCG.sosccsr.write(|w| w.soscen()._1());
