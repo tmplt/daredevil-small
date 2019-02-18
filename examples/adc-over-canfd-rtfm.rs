@@ -83,19 +83,32 @@ const APP: () = {
 fn configure_spll_clock(scg: &s32k144::SCG) {
     unsafe {
         // SOSC_init_8Mhz
-        scg.soscdiv.write(|w| w.bits(0x101));
-        scg.sosccfg.write(|w| w.bits(0x24));
+        #[rustfmt::skip]
+        scg.soscdiv.write(|w| {
+            w.soscdiv1().bits(0b001) // Divide by 1
+                .soscdiv2().bits(0b001) // Divide by 1
+        });
+        #[rustfmt::skip]
+        scg.sosccfg.write(|w| {
+            w.range()._10() // set medium frequency range (4Mhz - 8Mhz)
+                .hgo()._1()
+                .erefs()._1()
+        });
         while scg.sosccsr.read().lk().is_1() {} // Ensure SOSCCSR unlocked
-        scg.sosccsr.write(|w| w.bits(0x1));
+        scg.sosccsr.write(|w| w.soscen()._1());
         while scg.sosccsr.read().soscvld().is_1() {}
 
         // SPLL_init_160Mhz
+        while scg.spllcsr.read().lk().is_1() {} // Ensure SPLL unlocked
+        scg.spllcsr.write(|w| w.spllen()._0()); // Disable SPLL
+        #[rustfmt::skip]
+        scg.splldiv.write(|w| {
+            w.splldiv1().bits(0b010) // Divide by 2
+                .splldiv2().bits(0b011) // Divide by 4
+        });
+        scg.spllcfg.write(|w| w.mult().bits(0b1_1000)); // Multiply factor 40
         while scg.spllcsr.read().lk().is_1() {}
-        scg.spllcsr.write(|w| w.bits(0x0));
-        scg.splldiv.write(|w| w.bits(0x302));
-        scg.spllcfg.write(|w| w.bits(0x180000));
-        while scg.spllcsr.read().lk().is_1() {}
-        scg.spllcsr.write(|w| w.bits(0x1));
+        scg.spllcsr.write(|w| w.spllen()._1());
         while scg.spllcsr.read().spllvld().is_1() {}
 
         // NormalRUNmode_80Mhz
@@ -138,11 +151,32 @@ fn flexcan0_init(
         while can.mcr.read().frzack().is_0() {}
 
         // Configure nominal phase
-        can.cbt.write(|w| w.bits(0x802FB9EF));
+        #[rustfmt::skip]
+        can.cbt.write(|w| {
+            w.epseg2().bits(0b0_1111) // Bit length of phase segment 2
+                .epseg1().bits(0b0_1111) // Bit length of phase segment 2
+                .epropseg().bits(0b10_1110) // Bit time length of propagation segment
+                .erjw().bits(0b0_1111) // Extended Resync Jump Width
+                .epresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
+                .btf()._1() // Enable bit timing format
+        });
 
         // Configure data phase
-        can.fdcbt.write(|w| w.bits(0x00131CE3));
-        can.fdctrl.write(|w| w.bits(0x80039F00));
+        #[rustfmt::skip]
+        can.fdcbt.write(|w| {
+            w.fpseg2().bits(0b011) // Bit time length of Fast Phase Segment 2
+                .fpseg1().bits(0b111) // Bit time length of Fast Phase Segment 1
+                .fpropseg().bits(0b0_0111) // Bit time length of the propagation segment
+                .frjw().bits(0b011) // Number of time quanta per resynchronization
+                .fpresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
+        });
+        #[rustfmt::skip]
+        can.fdctrl.write(|w| {
+            w.tdcoff().bits(0b1_1111) // Transceiver Delay Compensation Offset
+                .tdcen()._1() // Enable TDC
+                .mbdsr0()._11() // 64 bytes per message buffer
+                .fdrate()._1() // Enable Bit Rate Switch
+        });
 
         // Clear 128 words RAM in module
         for i in 0..128 {
