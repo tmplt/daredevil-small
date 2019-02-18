@@ -4,11 +4,11 @@ with pkgs;
 let
   jlink = stdenv.mkDerivation rec {
     name = "jlink-v${version}";
-    version = "6.40b";
+    version = "6.42c";
 
     src = fetchurl {
-      url = "https://www.segger.com/downloads/jlink/JLink_Linux_x86_64.deb";
-      sha256 = "1b773p32aaypg3g6brpjzsjv10yycbl0kra480b2s3b4biwxp866";
+      url = "https://www.segger.com/downloads/jlink/JLink_Linux_V${stdenv.lib.replaceStrings ["."] [""] version}_x86_64.deb";
+      sha256 = "1ladqgszyicjg01waasbn5b6fngv4ap3vcksxcv1smrgr9yv9bv4";
       curlOpts = "-d accept_license_agreement=accepted -d confirm=yes";
     };
 
@@ -18,6 +18,8 @@ let
     installPhase = ''
       cp -r . $out
     '';
+
+    dontPatchELF = true;
 
     meta = with stdenv.lib; {
       description = "TODO";
@@ -32,19 +34,11 @@ let
   gdbServer = buildFHSUserEnv rec {
     name = "JLinkGDBServerCLExe";
     runScript = "${jlink}/opt/SEGGER/JLink_V6*/JLinkGDBServerCLExe";
-
-    targetPkgs = pkgs: with pkgs; [
-      udev
-    ];
   };
 
   rttClient = buildFHSUserEnv rec {
     name = "JLinkRTTClientExe";
     runScript = "${jlink}/opt/SEGGER/JLink_V6*/JLinkRTTClientExe";
-
-    targetPkgs = pkgs: with pkgs; [
-      udev
-    ];
   };
 
   JLinkExe = buildFHSUserEnv rec {
