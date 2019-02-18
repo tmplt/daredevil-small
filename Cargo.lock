@@ -84,7 +84,7 @@ dependencies = [
  "embedded_types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic-halt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "s32k144 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "s32k144evb 0.7.0",
+ "s32k144evb 0.7.0 (git+https://gitlab.com/rust-daredevil-group/s32k144evb?branch=daredevil)",
 ]
 
 [[package]]
@@ -206,6 +206,7 @@ dependencies = [
 [[package]]
 name = "s32k144evb"
 version = "0.7.0"
+source = "git+https://gitlab.com/rust-daredevil-group/s32k144evb?branch=daredevil#834e411c5b5977967f032104dc0bbdd98710d5db"
 dependencies = [
  "bit_field 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cortex-m 0.5.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -290,6 +291,7 @@ dependencies = [
 "checksum rand_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0905b6b7079ec73b314d4c748701f6931eb79fd97c668caa3f1899b22b32c6db"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 "checksum s32k144 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2ac15467169f28939784b086dcd4ecd5093a36d0fa180d71df30361badb359bd"
+"checksum s32k144evb 0.7.0 (git+https://gitlab.com/rust-daredevil-group/s32k144evb?branch=daredevil)" = "<none>"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 "checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 "checksum stable_deref_trait 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dba1a27d3efae4351c8051072d619e3ade2820635c3958d826bfea39d59b54c8"
