@@ -5,6 +5,12 @@ image: "rust:latest"
 before_script:
   - rustup default stable
   - rustup target add thumbv7em-none-eabihf
+  - rustup component add rustfmt
+
+test:formatting:
+  script:
+  - rustc --version && cargo --version
+  - cargo fmt -- --check
 
 test:cargo-check:
   script:
