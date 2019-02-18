@@ -1,6 +1,6 @@
 # Daredevil-small
 
-This repository constitutes the sources for the sensor array module of Daredevil (the *light*/*small* EVITA module),
+This repository constitutes the sources for the sensor array module of Daredevil (the *light/small* EVITA module),
 a [S32K144EVB-Q100 MCU](https://www.nxp.com/support/developer-resources/evaluation-and-development-boards/analog-toolbox/s32k144-evaluation-board:S32K144EVB) (microcontroller unit) that will read ranges from ultrasonic sensors and propagate that data over CAN-FD to an external entity.
 
 ## Documentation
@@ -14,7 +14,7 @@ MCU documentation can be found in [the documentation directory](./doc).
 
 ### Hardware
 For every sensor array module, the following is needed:
-* A NXP S32K144EVB-Q100 MCU;
+* An NXP S32K144EVB-Q100 MCU;
 * 4x [MaxBotix LV-MaxSonar-EZ1](https://www.maxbotix.com/Ultrasonic_Sensors/MB1010.htm);
 * a female D-Sub to four-pin CAN adapter (or some Dupont wires), and
 * a barrel power supply with 12V yield.
@@ -45,12 +45,13 @@ Install them via:
 
 #### Arch Linux
 ```
-# git clone https://aur.archlinux.org/jlink-software-and-documentation.git
+$ git clone https://aur.archlinux.org/jlink-software-and-documentation.git
 $ cd jlink-software-and-documentation
 $ makepkg -cs
-# pacman -U *.pkg.tar.xz
+$ pacman -U *.pkg.tar.xz
 ```
 or use your AUR helper of choice.
+
 And:
 
 ```
@@ -64,10 +65,10 @@ $ nix-shell shell.nix
 
 ## Deployment
 
-1. Connect the MCU to your system via USB;
-2. connect the power source to the MCU (if CAN functionality is wanted);
-3. start a GDB server by executing `./gdbserver.sh` in a separate shell instance, and
-4. program your application via `cargo run [--example <example-name>]`.
+1. Connect the MCU to your system via USB.
+2. Connect the power source to the MCU (if CAN functionality is wanted).
+3. Start a GDB server by executing `./gdbserver.sh` in a separate shell instance.
+4. Program your application via `cargo run [--example <example-name>]`.
 
 The target application will be flashed automatically, and a breakpoint will be installed at the start of `main`.
 
