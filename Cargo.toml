@@ -14,3 +14,7 @@ embedded_types = "0.3.2"
 [dependencies.s32k144evb]
 path = "lib/s32k144evb"
 default-features = false
+
+[dependencies.cortex-m-rtfm]
+version = "0.4.0"
+features = ["timer-queue"]
