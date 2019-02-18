@@ -20,4 +20,4 @@ version = "0.4.0"
 features = ["timer-queue"]
 
 [patch.crates-io]
-s32k144evb = { git = "https://gitlab.com/rust-daredevil-group/s32k144evb", branch = "daredevil" }
+s32k144evb = { git = "https://gitlab.com/rust-daredevil-group/mirrors/s32k144evb", branch = "daredevil" }
