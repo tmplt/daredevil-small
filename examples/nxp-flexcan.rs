@@ -23,6 +23,7 @@ unsafe fn main() -> ! {
     // Disable watchdog
     p.WDOG.cnt.write(|w| w.bits(0xd928c520)); // unlock, magical number
     p.WDOG.toval.write(|w| w.bits(0xffff)); // maximum timeout value
+    #[rustfmt::skip]
     p.WDOG.cs.write(|w| {
         w.en()._0() // Disable Watchdog
             .clk().bits(0b01) // Set Watchdog clock to LPO
@@ -30,10 +31,12 @@ unsafe fn main() -> ! {
     });
 
     // SOSC_init_8Mhz
+    #[rustfmt::skip]
     p.SCG.soscdiv.write(|w| {
         w.soscdiv1().bits(0b001) // Divide by 1
             .soscdiv2().bits(0b001) // Divide by 1
     });
+    #[rustfmt::skip]
     p.SCG.sosccfg.write(|w| {
         w.bits(0x24) // XXX: Bit 6 is unused in this field.
         //w.hgo()._1() // Set crystal oscillator for high gain
@@ -45,6 +48,7 @@ unsafe fn main() -> ! {
     // SPLL_init_160Mhz
     while p.SCG.spllcsr.read().lk().is_1() {} // Ensure the System Phase-locked loop is unlocked
     p.SCG.spllcsr.write(|w| w.spllen()._0()); // Disable SPLL
+    #[rustfmt::skip]
     p.SCG.splldiv.write(|w| {
         w.splldiv1().bits(0b010) // Divide by 2
             .splldiv2().bits(0b011) // Divide by 4
@@ -78,6 +82,7 @@ unsafe fn main() -> ! {
     // .frzack().is_1()
     while p.CAN0.mcr.read().bits() != 0x5980_000f {}
 
+    #[rustfmt::skip]
     p.CAN0.ctrl1.write(|w| { // Set Bus Speed to 500kbit/s
         w.propseg().bits(0b110) // propagation segment time = (PROPSEG+1) * one Sclock period
             .pseg2().bits(0b011) // length of phase segment 2
@@ -96,6 +101,7 @@ unsafe fn main() -> ! {
     p.CAN0.rxmgmask.write(|w| w.bits(0x1fffffff));
     p.CAN0.embedded_ram[4 * 4].write(|w| w.bits(0x0400_0000));
     p.CAN0.embedded_ram[4 * 4 + 1].write(|w| w.bits(0x1444_0000));
+    #[rustfmt::skip]
     p.CAN0.mcr.write(|w| {
         w.bits(0x0000_0000) // Just set everything to zero, takes us out of supervisor mode
             .maxmb().bits(0x1f) // Sets the number of the last message buffer (4*5 = 20MB)
@@ -106,7 +112,7 @@ unsafe fn main() -> ! {
     // TODO: Yet again, does not work, guessing the SVD file is wrong
     //while p.CAN0.mcr.read().frzack().is_1() {}
     //while !p.CAN0.mcr.read().notrdy().is_0() {}
-    while p.CAN0.mcr.read().bits() != 0x0000_001f{}
+    while p.CAN0.mcr.read().bits() != 0x0000_001f {}
 
     // PORT_init
     p.PCC.pcc_porte.modify(|_, w| w.cgc()._1()); // Enable PortE

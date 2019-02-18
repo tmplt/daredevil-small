@@ -24,6 +24,7 @@ unsafe fn main() -> ! {
     // Disable watchdog
     p.WDOG.cnt.write(|w| w.bits(0xd928_c520)); // unlock
     p.WDOG.toval.write(|w| w.bits(0xffff)); // maximum timeout value
+    #[rustfmt::skip]
     p.WDOG.cs.write(|w| {
         w.en()._0() // Disable Watchdog
             .clk().bits(0b01) // Set Watchdog clock to LPO
@@ -31,12 +32,14 @@ unsafe fn main() -> ! {
     });
 
     // SOSC_init_8Mhz
+    #[rustfmt::skip]
     p.SCG.soscdiv.write(|w| {
         w.soscdiv1().bits(0b001) // Divide by 1
             .soscdiv2().bits(0b001) // Divide by 1
     });
     // XXX: Document discrepancy: reference manual defines medium frequency range as 4Mhz - 8Mhz
     // while the reference C implementation defines it as 1Mhz - 8Mhz.
+    #[rustfmt::skip]
     p.SCG.sosccfg.write(|w| {
         w.range()._10() // set medium frequency range (4Mhz - 8Mhz)
             .hgo()._1()
@@ -49,6 +52,7 @@ unsafe fn main() -> ! {
     // SPLL_init_160Mhz
     while p.SCG.spllcsr.read().lk().is_1() {} // Ensure the System Phase-locked loop is unlocked
     p.SCG.spllcsr.write(|w| w.spllen()._0()); // Disable SPLL
+    #[rustfmt::skip]
     p.SCG.splldiv.write(|w| {
         w.splldiv1().bits(0b010) // Divide by 2
             .splldiv2().bits(0b011) // Divide by 4
@@ -78,6 +82,7 @@ unsafe fn main() -> ! {
     while p.CAN0.mcr.read().frzack().is_0() {}
 
     // Configure nominal phase
+    #[rustfmt::skip]
     p.CAN0.cbt.write(|w| {
         w.epseg2().bits(0b0_1111) // Bit length of phase segment 2
             .epseg1().bits(0b0_1111) // Bit length of phase segment 2
@@ -88,6 +93,7 @@ unsafe fn main() -> ! {
     });
 
     // Configure data phase
+    #[rustfmt::skip]
     p.CAN0.fdcbt.write(|w| {
         w.fpseg2().bits(0b011) // Bit time length of Fast Phase Segment 2
             .fpseg1().bits(0b111) // Bit time length of Fast Phase Segment 1
@@ -96,6 +102,7 @@ unsafe fn main() -> ! {
             .fpresdiv().bits(0b00_0000_0001) // Ratio between PE clock and Sclock
     });
 
+    #[rustfmt::skip]
     p.CAN0.fdctrl.write(|w| {
         w.tdcoff().bits(0b1_1111) // Transceiver Delay Compensation Offset
             .tdcen()._1() // Enable TDC
