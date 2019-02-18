@@ -8,7 +8,7 @@ let
 
     src = fetchurl {
       url = "https://www.segger.com/downloads/jlink/JLink_Linux_x86_64.deb";
-      sha256 = "0m38nz1i8yqrfa3339rskvylvk7a5jmwm499l3lwdmh8n93zb8xz";
+      sha256 = "1b773p32aaypg3g6brpjzsjv10yycbl0kra480b2s3b4biwxp866";
       curlOpts = "-d accept_license_agreement=accepted -d confirm=yes";
     };
 
