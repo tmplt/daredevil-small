@@ -1,5 +1,4 @@
-Flashing the S32K144
-===
+# Flashing the S32K144
 
 The S32K144 holds two MCUs: a Cortex-M4, the target CPU; and a Cortex-M0, the debug CPU.
 When we flash a program to the target CPU, the debug CPU exposes a debug application through which the target CPU is flashed via SWD/JTAG.
@@ -9,7 +8,7 @@ The debug application can be acquired from [SEGGER's website](https://www.segger
 
 In case your `lsusb`(8) output does not contains the vendor-product-id pair `1366:1015`, you may follow the guide below.
 
-### Flashing the debug application
+## Flashing the debug application
 
 <img align="right" style="height: 50%; width: 50%" src="J104-pos1-2.jpg">
 
@@ -22,13 +21,3 @@ In case your `lsusb`(8) output does not contains the vendor-product-id pair `136
 5. Set jumper J104 back to position 2-3.
 6. Power cycle the S32K board while not holding the RESET button down.
 7. An USB device with vendor-product-id pair `1366:1015` should appear on the system.
-
-### Flashing a target application
-After installing J-Link from SEGGER's website (pre-packaged for DEB- and RPM-based distros) run the following in a separate terminal.
-
-```
-JLinkGDBServerCLExe -select USB -device S32K144 -if SWD -speed 4000 -ir
-```
-
-Then in a new terminal, run `cargo run`.
-The project's target application will be flashed automatically, and a breakpoint will be set at the start of `main`.

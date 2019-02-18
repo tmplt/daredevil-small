@@ -65,34 +65,48 @@ unsafe fn main() -> ! {
     while p.SCG.csr.read().scs().bits() != 6 {} // Ensure clock is configured to System PLL
 
     // FLEXCAN0_init
-    p.PCC.pcc_flex_can0.modify(|_, w| w.cgc()._1()); // Enable clock for CAN
-    p.CAN0.mcr.modify(|_, w| w.mdis()._1()); // Disable FlexCAN module
-    p.CAN0.ctrl1.modify(|_, w| w.clksrc()._0()); // Set oscillator clock to be CAN engine clock
-    p.CAN0.mcr.modify(|_, w| {
-        w.mdis()._0() // Reenable FlexCAN
-         .frz()._1() // Enable Freeze Mode
-         .halt()._1() // Enter freeze mode if FRZ bit is asserted
+    p.PCC.pcc_flex_can0.write(|w| w.cgc()._1()); // Enable clock for CAN
+    p.CAN0.mcr.write(|w| w.mdis()._1()); // Disable FlexCAN module
+    p.CAN0.ctrl1.write(|w| w.clksrc()._0()); // Set oscillator clock to be CAN engine clock
+    p.CAN0.mcr.write(|w| {
+        w.mdis()._0() // Reenable FlexCAN, this enables freeze mode and halt
     });
-    while p.CAN0.mcr.read().frzack().is_1() {}
-    //p.CAN0.ctrl1.write(|w| w.bits(0xdb0006));
-    p.CAN0.ctrl1.modify(|_, w| {
+
+    let _ = 0;
+
+    // TODO: Lookup why this does not work in the SVD code
+    // .frzack().is_1()
+    while p.CAN0.mcr.read().bits() != 0x5980_000f {}
+
+    p.CAN0.ctrl1.write(|w| { // Set Bus Speed to 500kbit/s
         w.propseg().bits(0b110) // propagation segment time = (PROPSEG+1) * one Sclock period
             .pseg2().bits(0b011) // length of phase segment 2
             .pseg1().bits(0b011) // length of phase segment 1
             .rjw().bits(0b11)   // Resync Jump Width
     });
+
+    // Enable read
     // for i in 0..128 {
     //     p.CAN0.embedded_ram[i].write(|w| w.bits(0));
     // }
     // for i in 0..16 {
     //     p.CAN0.rximr[i].write(|w| w.bits(0xffffffff));
     // }
+
     p.CAN0.rxmgmask.write(|w| w.bits(0x1fffffff));
-    p.CAN0.embedded_ram[4 * 4].modify(|_, w| w.bits(0x4000000));
-    p.CAN0.embedded_ram[4 * 4 + 1].modify(|_, w| w.bits(0x14440000));
-    p.CAN0.mcr.write(|w| w.maxmb().bits(0x1f)); // Sets the number of the last message buffer (4*5 = 20MB)
-    while p.CAN0.mcr.read().frzack().is_1() {}
-    while !p.CAN0.mcr.read().notrdy().is_0() {}
+    p.CAN0.embedded_ram[4 * 4].write(|w| w.bits(0x0400_0000));
+    p.CAN0.embedded_ram[4 * 4 + 1].write(|w| w.bits(0x1444_0000));
+    p.CAN0.mcr.write(|w| {
+        w.bits(0x0000_0000) // Just set everything to zero, takes us out of supervisor mode
+            .maxmb().bits(0x1f) // Sets the number of the last message buffer (4*5 = 20MB)
+    });
+
+    let _ = 0;
+
+    // TODO: Yet again, does not work, guessing the SVD file is wrong
+    //while p.CAN0.mcr.read().frzack().is_1() {}
+    //while !p.CAN0.mcr.read().notrdy().is_0() {}
+    while p.CAN0.mcr.read().bits() != 0x0000_001f{}
 
     // PORT_init
     p.PCC.pcc_porte.modify(|_, w| w.cgc()._1()); // Enable PortE
@@ -106,9 +120,9 @@ unsafe fn main() -> ! {
     loop {
         // FLEXCAN0_transmit_msg
         p.CAN0.iflag1.write(|w| w.bits(0x1));
-        p.CAN0.embedded_ram[2].write(|w| w.bits(0xa5112233));
-        p.CAN0.embedded_ram[3].write(|w| w.bits(0x44556677));
-        p.CAN0.embedded_ram[1].write(|w| w.bits(0x15540000));
-        p.CAN0.embedded_ram[0].write(|w| w.bits(0xc400000 | (8 << 16)));
+        p.CAN0.embedded_ram[2].write(|w| w.bits(0xa511_2233));
+        p.CAN0.embedded_ram[3].write(|w| w.bits(0x4455_6677));
+        p.CAN0.embedded_ram[1].write(|w| w.bits(0x1554_0000));
+        p.CAN0.embedded_ram[0].write(|w| w.bits(0x0c40_0000 | (8 << 16)));
     }
 }
