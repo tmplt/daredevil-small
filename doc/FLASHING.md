@@ -4,7 +4,7 @@ The S32K144 holds two MCUs: a Cortex-M4, the target CPU; and a Cortex-M0, the de
 When we flash a program to the target CPU, the debug CPU exposes a debug application through which the target CPU is flashed via SWD/JTAG.
 
 In this project, we flash our target CPU via a GDB server exposed by [J-Link](https://www.segger.com/downloads/jlink), which expects an OpenSDA debug application.
-The debug application can be acquired from [SEGGER's website](https://www.segger.com/downloads/jlink#JLinkOpenSDABoardSpecificFirmwares) (under the FRDM-KL25Z entry, MD5: `f715b2d9db13861a48a86f00f61d2182`) but is also distributed in this repository as `../12_OpenSDA_FRDM-KL25Z.bin` for convenience.
+The debug application can be acquired from [SEGGER's website](https://www.segger.com/downloads/jlink#JLinkOpenSDABoardSpecificFirmwares) (under the FRDM-KL25Z entry, MD5: `f715b2d9db13861a48a86f00f61d2182`) but is also distributed in this repository as `../etc/12_OpenSDA_FRDM-KL25Z.bin` for convenience.
 
 In case your `lsusb`(8) output does not contains the vendor-product-id pair `1366:1015`, you may follow the guide below.
 
