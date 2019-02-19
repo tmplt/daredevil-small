@@ -1,0 +1,214 @@
+/**
+@defgroup mpu_pal Memory Protection Unit Peripheral Abstraction Layer (MPU PAL)
+@brief The S32 SDK provides a Peripheral Abstraction Layer for Memory Protection Unit (MPU) modules of S32 SDK devices.
+<p>
+  The MPU PAL driver provides memory protection functionality via allocate regions and restrict access rights of all masters on the region.
+  It was designed to be portable across all platforms and IPs which support Memory Protection Unit.
+</p>
+
+## How to integrate MPU PAL in your application ##
+<p>
+  Unlike the other drivers, MPU PAL modules need to include a configuration file named mpu_pal_cfg.h,
+  which allows the user to specify which IPs are used and how many resources are allocated for each
+  of them (state structures). The following code example shows how to configure one instance for each
+  available MPU IPs.
+</p>
+@code
+#ifndef MPU_PAL_CFG_H
+#define MPU_PAL_CFG_H
+
+/* Define which IP instance will be used in current project (only one of them)*/
+#define MPU_OVER_MPU
+#define MPU_OVER_SMPU
+
+#endif /* MPU_PAL_CFG_H */
+@endcode
+
+The following tables contains IPs specification on platforms:
+- Available
+   IP/MCU     |S32K142|S32K144|S32K146|S32K148|S32MTV|MPC5744P|MPC5746C|MPC5748G|
+:------------:|:-----:|:-----:|:-----:|:-----:|:----:|:------:|:------:|:------:|
+    MPU       |  YES  |  YES  |  YES  |  YES  |  YES |  NO    |  NO    |  NO    |
+    SMPU      |  NO   |  NO   |  NO   |  NO   |  NO  |  YES   |  YES   |  YES   |
+
+- Number of supported instances
+   IP/MCU     |S32K142|S32K144|S32K146|S32K148|S32MTV|MPC5744P|MPC5746C|MPC5748G|
+:------------:|:-----:|:-----:|:-----:|:-----:|:----:|:------:|:------:|:------:|
+    MPU       |  1    |  1    |  1    |  1    |  1   |   --   |   --   |   --   |
+    SMPU      |  --   |  --   |  --   |  --   |  --  |   1    |   1    |   2    |
+
+- Number of supported regions
+   IP/MCU     |S32K142|S32K144|S32K146|S32K148|S32MTV|MPC5744P|MPC5746C|MPC5748G|
+:------------:|:-----:|:-----:|:-----:|:-----:|:----:|:------:|:------:|:------:|
+    MPU       |  8    |  8    |  8    |  16   |  16  |   --   |   --   |   --   |
+    SMPU      |  --   |  --   |  --   |  --   |  --  |   16   |   16   |   16   |
+
+## Initialization & De-initialization ##
+<p>
+  - In order to use the MPU PAL driver it must be first initialized, using MPU_Init() function to initialize or re-initialize module.
+  - Example:
+  1. Definitions for MPU IP (MPU_OVER_MPU)
+  @code
+    /* Define MPU PAL instance */
+    #define INST_MPU_PAL          MPU_OVER_MPU0_INSTANCE  /* MPU instance 0 */
+
+    /* Define number of masters supported by platform */
+    #define MPU_PAL_MASTER_COUNT  (16U)
+
+    /* Define number of used regions (should be in range supported by platform) */
+    #define MPU_PAL_REGION_COUNT  (1U)
+
+    /* Status variable */
+    status_t status;
+    @endcode
+
+  2. Region configuration
+  @code
+    /* Master configuration */
+    mpu_master_privilege_right_t mpu_pal_masterAccRight[MPU_PAL_MASTER_COUNT] =
+    {
+      /* Master */
+      {
+        .masterNum = FEATURE_MPU_MASTER_CORE,              /* Core */
+        .accessRight = MPU_ACCESS_SUPERVISOR_RWX_USER_RWX  /* Access right: read, write and execute
+                                                           for both supervisor and user mode */
+      },
+      /* Define the rest masters here */
+      ...
+    };
+
+    /* Region configuration */
+    mpu_region_config_t mpu_pal_regionConfigs[MPU_PAL_REGION_COUNT] =
+    {
+      /* Region 0 */
+      {
+        .startAddr = 0U,                           /* Start address */
+        .endAddr = 0xFFFFFFFFU,                    /* End address */
+        .masterAccRight = mpu_pal_masterAccRight,  /* Pointer to access right of all masters */
+      /* If support PID */
+        .processIdEnable = 0x01U,                /* 8'b00000001 Enable PID for logical master 0 (Core) */
+        .processIdentifier = 0x00U,              /* Process identifier */
+        .processIdMask = 0xFFU,                  /* Process identifier mask */
+      /* End if */
+      /* Extension */
+        .extension = NULL                        /* This field will be used to add extra settings
+                                                 to the basic region configuration */
+      /* End extension */
+      }
+    };
+  @endcode
+  Or using MPU_GetDefaultConfig()
+  @code
+    /* Master configuration */
+    mpu_master_privilege_right_t mpu_pal_masterAccRight[MPU_PAL_MASTER_COUNT];
+    /* Region configuration */
+    mpu_region_config_t regionConfig0;
+
+    /* Get default region configuration */
+    MPU_GetDefaultConfig(mpu_pal_masterAccRight, &regionConfig0);
+    mpu_region_config_t mpu_pal_regionConfigs[MPU_PAL_REGION_COUNT] =
+    {
+      regionConfig0
+    };
+  @endcode
+
+  3. Initialization
+  @code
+    /* Initializes MPU PAL */
+    status = MPU_Init(INST_MPU_PAL, MPU_PAL_REGION_COUNT, mpu_pal_regionConfigs);
+  @endcode
+
+  4. De-initialization
+  @code
+    /* De-initializes MPU PAL */
+    status = MPU_Deinit(INST_MPU_PAL);
+  @endcode
+</p>
+
+## Updates region configuration ##
+<p>
+  - The MPU PAL driver provides a function named MPU_UpdateRegion() to update a region configuration (address,
+  access rights of all masters, process identifier,...).
+  - In order to remove unused region or add again, MPU_EnableRegion() can be used.
+  - Please note the region will be unlocked if the update succeed.
+  - Example:
+  1. Modify (or add new) region after initialization
+  @code
+    /* Disables process identifier functionality on region 0 */
+    regionConfig0.processIdEnable = 0x00U;
+
+    /* Updates region 0 */
+    status = MPU_UpdateRegion(INST_MPU_PAL, 0U, &regionConfig0);
+  @endcode
+
+  2. Enables/Disables an exist region configuration
+  @code
+    /* Enables region 1 */
+    status = MPU_EnableRegion(INST_MPU_PAL, 1U, true);
+
+    /* Disables region 2 */
+    status = MPU_EnableRegion(INST_MPU_PAL, 2U, false);
+  @endcode
+</p>
+
+## Detects access protection errors ##
+<p>
+  - The MPU PAL driver provides a function named MPU_GetError() to detect an access protection error on error capture channel. The channel can be different among IPs.
+  - Example:
+  @code
+    /* Define error variable */
+    mpu_error_info_t mpu_pal_errVal;
+
+    /* Gets information on channel 0 */
+    bool errStatus = MPU_GetError(INST_MPU_PAL, 0U, &mpu_pal_errVal)
+  @endcode
+</p>
+
+## Other IP specific details ##
+- <b>MPU</b> (MPU_OVER_MPU)
+  - Support PID for specific masters corresponding with the processIdEnable bit index.
+  - Detects an access error on slave ports:
+            Source         | Slave port |   Destination    |S32K142|S32K144|S32K146|S32K148|S32MTV|
+    :---------------------:|:----------:|:----------------:|:-----:|:-----:|:-----:|:-----:|:----:|
+     Crossbar slave port 0 |     0      | Flash Controller |   x   |   x   |   x   |   x   |  x   |
+     Crossbar slave port 1 |     1      | SRAM backdoor    |   x   |   x   |   x   |   x   |  x   |
+     Code Bus              |     2      | SRAM_L frontdoor |   x   |   x   |   x   |   x   |  x   |
+     System Bus            |     3      | SRAM_U frontdoor |   x   |   x   |   x   |   x   |  x   |
+     Crossbar slave port 2 |     4      | QuadSPI          |       |       |       |   x   |      |
+
+- <b>SMPU</b> (MPU_OVER_SMPU)
+  - Support PID for for all specific masters (processIdEnable same as bool)
+  - Detects an access error on bus masters.
+  - Supports lock and cache inhibit features in region extension.
+    - An address range specified in an MPU region descriptor for a cacheable space (that is, CI = 0)
+      must be defined with a starting address aligned on a 0-modulo-32 byte address and with a
+      multiple of the 32 byte cache line size factoring into the end address.
+  - MPU_UpdateRegionLock() can be used to update lock configuration on a region.
+  - SMPU_GetRegionLockInfo() can be used to get lock status on a region.
+  - Example:
+  1. Extension
+  @code
+    /* SMPU region extension */
+    mpu_over_smpu_extension mpu_pal_extension =
+    {
+      .cacheInhibitEnable = true,  /* The region cannot be cached */
+      .lockConfig = MPU_UNLOCK     /* The region is unlocked */
+    }
+
+    /* Add region 0 extension */
+    mpu_pal_regionConfigs[0U].extension = &mpu_pal_extension;
+
+    /* Initialization */
+    ...
+  @endcode
+
+  2. Update lock configuration and get lock status on region
+  @code
+    /* All masters cannot write to region descriptor 0 (cannot modify region 0 configuration) */
+    status = MPU_UpdateRegionLock(INST_MPU_PAL, 0U, MPU_ALL_LOCK);
+
+    /* Gets lock status on region 0 */
+    mpu_region_lock_t lockStatus;
+    SMPU_GetRegionLockInfo(INST_MPU_PAL, 0U, &lockStatus);
+  @endcode
+@}*/

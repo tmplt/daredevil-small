@@ -1,0 +1,170 @@
+/**
+@defgroup oc_pal Output Compare - Peripheral Abstraction Layer (OC PAL)
+@brief The S32 SDK provides a Peripheral Abstraction Layer for the output compare mode of S32 SDK devices.
+<p>
+  The OC PAL driver allows to set pin, clear pin or toggle pin.
+  It was designed to be portable across all platforms and IPs which support FTM and eMIOS.
+</p>
+
+  ## How to integrate OC PAL in your application ##
+<p>
+  Unlike the other drivers, OC PAL modules need to include a configuration
+  file named oc_pal_cfg.h. This one allows the user to specify which IPs are used.
+  The following code example shows how to configure one instance for each
+  available OC IPs.
+</p>
+
+ @code
+ #ifndef OC_PAL_CFG_H
+ #define OC_PAL_CFG_H
+
+ /* Define which IP instance will be used in current project */
+ #define OC_PAL_OVER_EMIOS
+
+ #endif /* OC_PAL_CFG_H */
+ @endcode
+
+ The following table contains the matching between platforms and available IPs
+ |    IP/MCU   | S32K142 | S32K144 | S32K146 | S32K148 | MPC5748G | MPC5746C |
+ |:-----------:|:-------:|:-------:|:-------:|:-------:|:--------:|:---------|
+ |    FTM_OC   |   YES   |   YES   |   YES   |   YES   |    NO    |    NO    |
+ |   eMIOS_OC  |   NO    |   NO    |   NO    |   NO    |    YES   |    YES   |
+<p>
+
+  ## Features ##
+   - Set the output signal can be set, cleared, or toggled pin
+   - Start/stop the channel in the output compare mode
+   - Force the channel output to high or low level
+
+  ## Functionality ##
+
+  ### Initialization ###
+<p>
+  In order to use the OC PAL driver it must be first initialized, using OC_Init() function.
+  Once initialized, it should be de-initialized before initialized again for the same OC module instance,
+  using OC_Deinit(). The initialization function does the following operations:
+    - sets the clock source, clock prescaler
+    - sets the number of channel output compare are used
+    - configures the channel output to set or clear or toggle pin
+</p>
+
+### Example: ###
+</p>
+ @code
+    /*! The instance number is used */
+    #define INST_OC_PAL1 0U
+
+    channel_extension_emios_for_oc_t channelEmiosExtension =
+    {
+        .timebase = OC_BUS_SEL_A,                         /*!< Counter bus selected */
+        .period = 8000UL,                                 /*!< If up mode period = A1, period = 2(A1) with MC up/down mode,
+                                                        *   period = 2(A1) -2 with MCB up/down mode */
+        .internalPrescaler = EMIOS_CLOCK_DIVID_BY_1,      /*!< Match value of leading edge
+                                                        * Ignore if SAOC mode selected */
+    };
+
+    oc_output_ch_param_t ocPalChnConfig[1] =
+    {
+         .hwChannelId = 1U,                            /*!< Physical hardware channel ID */
+         .chMode = OC_SET_ON_MATCH,                    /*!< Channel output mode*/
+         .comparedValue = 2000UL,                      /*!< The compared value */
+         .channelExtension = &channelEmiosExtension
+    };
+
+    extension_emios_for_oc_t emiosOcExtensionConfig =
+    {
+        .clkDivVal = 1U,                                 /*!< Select the clock divider value for the global prescaler in range (1-256) */
+        .enableGlobalPrescaler = false,                  /*!< Enable global prescaler or disable */
+        .enableGlobalTimeBase = false,                   /*!< Enable global timebase or disable */
+    };
+
+    oc_config_t ocPal1_InitConfig =
+    {
+        .nNumChannels = 1U,                             /*!< Number of output compare channel need used */
+        .outputChConfig = &ocPalChnConfig,                                /*!< Output compare channels configuration */
+        .extension =&emiosOcExtensionConfig                         /*!< IP specific configuration structure */
+    };
+
+    /* Initialize output compare mode */
+    OC_Init(INST_OC_PAL1, &ocPal1_InitConfig);
+ @endcode
+
+  ### De-initialize a output compare instance ###
+<p>
+ This function will disable the output compare mode. The driver can't be used again until reinitialized.
+ All register are reset to default value and counter is stopped.
+### Example: ###
+</p>
+ @code
+    /* De-initialize output compare mode */
+    OC_Deinit(INST_OC_PAL1);
+ @endcode
+
+  ### Start the channel in the output compare mode ###
+<p>
+ This function will set the channel is in the output compare mode.
+### Example: ###
+</p>
+ @code
+    uint8_t hwChannel = ocPal1_InitConfig.outputChConfig[0].hwChannelId;
+
+    /* Start channel in the output compare  mode */
+    OC_StartChannel(INST_OC_PAL1, hwChannel);
+ @endcode
+
+  ### Stop the channel in the output compare  mode ###
+<p>
+ This function will set the channel is used in GPIO mode or other peripheral.
+### Example: ###
+</p>
+ @code
+    uint8_t hwChannel = ocPal1_InitConfig.outputChConfig[0].hwChannelId;
+
+    /* Stop channel in the output compare mode */
+    OC_StopChannel(INST_OC_PAL1, hwChannel);
+ @endcode
+
+  ### Control the channel output by software ###
+<p>
+This function is used to forces the output pin to a specified value. It can be used to control the output pin value when the OC channel is disabled.
+### Example: ###
+</p>
+ @code
+    uint8_t hwChannel = ocPal1_InitConfig.outputChConfig[0].hwChannelId;
+
+    /* Force the channel output by software */
+    OC_SetOutputState(INST_OC_PAL1, hwChannel, false);
+ @endcode
+
+  ### Set the operation mode of channel output ###
+<p>
+This function will set the action executed on a compare match value to set output pin, clear output pin, toggle output pin.
+### Example: ###
+</p>
+ @code
+    uint8_t hwChannel = ocPal1_InitConfig.outputChConfig[0].hwChannelId;
+
+    /* Change the channel output to toggle pin */
+    OC_SetOutputAction(INST_OC_PAL1, hwChannel, OC_TOGGLE_ON_MATCH);
+ @endcode
+
+  ### Update the match value on the channel ###
+<p>
+This function will update the value of an output compare channel to the counter matches to this value.
+### Example: ###
+</p>
+ @code
+    uint8_t hwChannel = ocPal1_InitConfig.outputChConfig[0].hwChannelId;
+
+    /* Set the match counter to new value */
+    OC_SetCompareValue(INST_OC_PAL1, hwChannel, 0x1000UL, OC_RELATIVE_VALUE);
+ @endcode
+
+  ## Important Notes ##
+<p>
+  - Before using the OC PAL driver the module clock must be configured. Refer to Clock Manager for clock configuration.
+  - The board specific configurations must be done prior to driver after that can call APIs.
+  - Some features are not available for all OC IPs and incorrect parameters will be handled by DEV_ASSERT.
+</p>
+  </p>
+@}*/

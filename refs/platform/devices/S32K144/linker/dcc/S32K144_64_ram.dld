@@ -1,0 +1,117 @@
+/*
+** ###################################################################
+**     Processor:           S32K144 with 64 KB SRAM
+**     Compiler:            Windriver Diab Compiler
+**
+**     Abstract:
+**         Linker file for the Windriver Diab Compiler
+**
+**     Copyright (c) 2015-2016 Freescale Semiconductor, Inc.
+**     Copyright 2017 NXP
+**     All rights reserved.
+**
+**     THIS SOFTWARE IS PROVIDED BY NXP "AS IS" AND ANY EXPRESSED OR
+**     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+**     OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+**     IN NO EVENT SHALL NXP OR ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+**     INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+**     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+**     SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+**     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+**     STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+**     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+**     THE POSSIBILITY OF SUCH DAMAGE.
+**
+**     http:                 www.freescale.com
+**     mail:                 support@freescale.com
+**
+** ###################################################################
+*/
+
+HEAP_SIZE  = 0x00000400;
+STACK_SIZE = 0x00000400;
+M_VECTOR_RAM_SIZE = 0x00000400;
+
+/* Specify the memory areas */
+MEMORY
+{
+  /* SRAM_L */
+  m_interrupts          (RX)  : ORIGIN = 0x1FFF8000, LENGTH = 0x00000400
+  m_text                (RX)  : ORIGIN = 0x1FFF8400, LENGTH = 0x00007C00
+
+  /* SRAM_U */
+  m_data                (RW)  : ORIGIN = 0x20000000, LENGTH = 0x00007000
+}
+
+/* Define output sections */
+SECTIONS
+{
+    GROUP : {
+        .interrupts : { KEEP(*(.isr_vector)) }
+    } > m_interrupts
+
+    /* Collect all code sections from all input files to make a single output
+     * .text section and locate it in "m_text" memory */
+    GROUP : {
+        .text : { *(.text) *(.rodata) *(.init) *(.fini) }
+        .ctors (=TEXT) ALIGN(4):{ ctordtor.o(.ctors) *(.ctors) }
+        .dtors (=TEXT) ALIGN(4):{ ctordtor.o(.dtors) *(.dtors) }
+
+        /* Section for storing functions that needs to execute from RAM */
+        __CODE_RAM = .;
+        .code_ram (=TEXT) ALIGN(4): { *(.code_ram) }
+        __CODE_ROM = .;            /* Symbol is used by start-up for data initialization. */
+        __CODE_END = .;            /* No copy */
+
+        __DATA_ROM = .;
+    } > m_text
+
+    GROUP : {
+        /* Custom Section Block that can be used to place data at absolute address. */
+        /* Use #pragma section to place data here. */
+        .customSectionBlock :
+            {
+                KEEP(*(.customSection))  /* Keep section even if not referenced. */
+            }
+
+        /* With the COPYTABLE specification on the GROUP,
+         * .data and .sdata sections are placed at the
+         * .text2 section in "m_text" (the "physical" address) but will
+         * be at the beginning of "m_data" (the "logical" address) at run
+         * time. The linker links for "logical" address in "m_data".
+         * .sbss and .bss do not occupy any space in "m_text" and
+         * they are linked for "logical" address in "m_data".
+         */
+
+
+        .data (DATA) :
+                {
+                . = ALIGN(4);
+                __data_start__ = .;
+                *(.data) *(.sdata) *(.j_pdata)
+                . = ALIGN(4);
+                __data_end__ = .;
+                __DATA_END = __DATA_ROM;
+                }
+
+        /* Allocate uninitialized sections.                         */
+         __BSS_START = .;
+        .sbss (BSS) : {}
+        .bss (BSS) : {}
+        __BSS_END = .;
+
+        /* Any remaining space will be used as a heap.              */
+
+        __HEAP_START = .;
+    } > m_data
+
+
+    __StackTop   = ADDR(m_data) + SIZEOF(m_data);
+
+    __VECTOR_TABLE = ADDR(m_interrupts);
+    __DATA_RAM = ADDR(m_data) + M_VECTOR_RAM_SIZE;
+    __VECTOR_RAM = ADDR(m_interrupts);
+    __RAM_VECTOR_TABLE_SIZE = 0;
+}
+
+
