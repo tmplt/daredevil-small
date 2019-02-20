@@ -38,8 +38,8 @@ let
   flashLite = wrapJlink "JFlashLiteExe" [];
   flashSPI = wrapJlink "JFlashSPICLExe" [];
   jlink  = wrapJlink "JLinkExe" [ udev ];
-  gdbServer = wrapJlink "JLinkGDBServerExe" [];
-  gdbServerCL = wrapJlink "JLinkGDBServerCLExe" [];
+  gdbServer = wrapJlink "JLinkGDBServerExe" [ udev ];
+  gdbServerCL = wrapJlink "JLinkGDBServerCLExe" [ udev ];
   licenseManager = wrapJlink "JLinkLicenseManagerExe" [];
   remoteServer = wrapJlink "JLinkRemoteServerExe" [];
   remoteServerCL = wrapJlink "JLinkRemoteServerCLExe" [];
