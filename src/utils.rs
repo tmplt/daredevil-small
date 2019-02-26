@@ -1,4 +1,5 @@
 //! A collection of utility functions.
+#![allow(dead_code)]
 
 use core::sync::atomic::{self, Ordering};
 
