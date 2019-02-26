@@ -10,6 +10,7 @@ panic-halt = "0.2.0"
 cortex-m-rt = "0.6.7"
 s32k144 = "0.10.0"
 embedded_types = "0.3.2"
+arrayref = "0.3.5"
 
 [dependencies.s32k144evb]
 version = "0.7.0"

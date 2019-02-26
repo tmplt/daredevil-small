@@ -9,6 +9,9 @@
 use cortex_m_rt::entry;
 use s32k144;
 
+#[macro_use]
+extern crate arrayref;
+
 #[path = "../src/csec.rs"]
 mod csec;
 #[path = "../src/panic.rs"]
@@ -85,9 +88,13 @@ unsafe fn main() -> ! {
     csec.init_rng().unwrap();
     csec.generate_rnd(&mut uc_rnd_buf).unwrap();
     csec.load_plainkey(&UC_PLAINKEY).unwrap();
-    csec.encrypt_cbc(&uc_plaintext, &uc_initvct, &mut uc_enctext, MSG_LEN)
-        .unwrap();
-    csec.decrypt_cbc(&uc_enctext, &uc_initvct, &mut uc_dectext, MSG_LEN)
+    csec.encrypt_cbc(
+        &uc_plaintext,
+        array_ref![uc_initvct, 0, 16],
+        &mut uc_enctext,
+    )
+    .unwrap();
+    csec.decrypt_cbc(&uc_enctext, array_ref![uc_initvct, 0, 16], &mut uc_dectext)
         .unwrap();
     assert!(uc_plaintext == &uc_dectext[..]);
 
