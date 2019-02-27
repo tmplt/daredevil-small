@@ -5,7 +5,7 @@ a [S32K144EVB-Q100 MCU](https://www.nxp.com/support/developer-resources/evaluati
 
 ## Documentation
 All code in this repo is (read: will be) heavily documented, including examples.
-Run `cargo doc --open` to build and open all relevant documentation in your web browser.
+Run `cargo doc [--no-deps] --document-private-items --open` to build and open all relevant documentation in your web browser.
 Crate documentation presumes that this README has been read.
 
 MCU documentation can be found in [the documentation directory](./doc).

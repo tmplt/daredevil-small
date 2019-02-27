@@ -1,29 +1,109 @@
-//! This module is an ad-hoc implementation for encryption and decryption of 128 bits of data
-//! (`&[u8; 16]`), derived from `refs/security_pal`.
+//! On-board Cryptographic Service Engine (CSEc)
 //!
-//! This module will eventually be able to encrypt slices `&[u8]` of arbitrary sizes.
+//! This module is an interface implementation for the board's hardware-accelerated cryptographic
+//! functions. It was derived from [Freescale's `security_pal/`
+//! example](https://gitlab.com/rust-daredevil-group/daredevil-small/tree/master/refs).
+//! A range of funtions are supported, but this module currently only implements
+//! * random number generation,
+//! * plainkey loading into RAM slow, and
+//! * AES-CBC-128 encryption/decryption.
+//!
+//! All public functions of this module return a `Result<(), CommandResult>`.
+//!
+//! # Usage
+//!
+//! - Random number generation
+//!
+//! This module can generate a `[u8; 16]` of random bits via
+//! ```rust
+//! mod csec;
+//!
+//! let mut rnd_buf: [u8; 16] = [0; 16];
+//!
+//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
+//! csec.init_rng().unwrap();
+//! csec.generate_rnd(&mut rnd_buf).unwrap();
+//! assert!(!rnd_buf.iter().all(|x| *x == 0)); // very likely
+//! ```
+//!
+//! If you want a random integer instead you can
+//! ```rust
+//! let random_number = u128::from_be_bytes(rnd_buf);
+//! ```
+//!
+//! - AES-CBC-128 encryption/decryption
+//!
+//! This module can encrypt/decrypt a `[u8]` of any size after a key (`[u8; 16]`) has been loaded and an
+//! initialization vector (also `[u8; 16]`) has been provided.
+//!
+//! ```rust
+//! #[macro_use]
+//! extern crate arrayref;
+//!
+//! mod csec;
+//!
+//! // Example key
+//! const PLAINKEY: [u8; 16] = [
+//!     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f,
+//!     0x3c,
+//! ];
+//!
+//! let plaintext: &[u8] = "Key:0123456789ab-666".as_bytes();
+//! let initvct: &[u8] = "1234567887654321".as_bytes();
+//! let mut enctext: [u8; 20] = [0; 20];
+//! let mut dectext: [u8; 20] = [0; 20];
+//!
+//!
+//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
+//! csec.load_plainkey(&PLAINKEY).unwrap();
+//! csec.encrypt_cbc(&plaintext, array_ref![initvct, 0, 20], &mut enctext)
+//!     .unwrap();
+//! csec.decrypt_cbc(&enctext, array_ref![initvct, 0, 20], &mut dectext)
+//!     .unwrap();
+//! assert!(plaintext == &dectext[..]);
+//! ```
+//!
+//! The provided key is loaded onto the board's RAM key slot. Multiple key slots are available, but
+//! support for those are not implemented.
+//!
+//! # TODO
+//! - Is the key or the init vector considered a secret?
+//! - Document constants?
+//! - refer to related reference chapter
 #![allow(dead_code)]
 
+use crate::utils;
 use core::mem::transmute;
 use s32k144;
-
-mod utils;
 
 /// CSEc commands which follow the same values as the SHE command defenition.
 #[derive(Debug, Clone, Copy)]
 enum Command {
+    /// Implemented!
     EncEcb = 0x01,
+
+    /// Implemented!
     EncCbc,
+
     DecEcb,
     DecCbc,
     GenerateMac,
     VerifyMac,
     LoadKey,
+
+    /// Implemented!
     LoadPlainKey,
+
     ExportRamKey,
+
+    /// Implemented!
     InitRng,
+
     ExtendSeed,
+
+    /// Implemented!
     Rng,
+
     Reserved1,
     BootFailure,
     BootOk,
