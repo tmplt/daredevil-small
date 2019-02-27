@@ -9,6 +9,9 @@
 use cortex_m_rt::entry;
 use s32k144;
 
+#[macro_use]
+extern crate arrayref;
+
 #[path = "../src/csec.rs"]
 mod csec;
 #[path = "../src/panic.rs"]
@@ -71,25 +74,27 @@ unsafe fn main() -> ! {
 
     const MSG_LEN: usize = 16;
     const RND_BUF_LEN: usize = 16;
-    let mut uc_rnd_buf: [u8; RND_BUF_LEN] = [0; RND_BUF_LEN];
-    const UC_PLAINKEY: [u8; MSG_LEN] = [
+    let mut rnd_buf: [u8; RND_BUF_LEN] = [0; RND_BUF_LEN];
+    const PLAINKEY: [u8; MSG_LEN] = [
         0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f,
         0x3c,
     ];
-    let uc_plaintext: &[u8] = "Key:0123456789ab".as_bytes();
-    let uc_initvct: &[u8] = "1234567887654321".as_bytes();
-    let mut uc_enctext: [u8; MSG_LEN] = [0; MSG_LEN];
-    let mut uc_dectext: [u8; MSG_LEN] = [0; MSG_LEN];
+    let plaintext: &[u8] = "Key:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789ab6666666".as_bytes();
+    let initvct: &[u8] = "1234567887654321".as_bytes();
+    let mut enctext: [u8; MSG_LEN * 10 + 7] = [0; MSG_LEN * 10 + 7];
+    let mut dectext: [u8; MSG_LEN * 10 + 7] = [0; MSG_LEN * 10 + 7];
+
+    assert_eq!(plaintext.len(), MSG_LEN * 10 + 7);
 
     let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
     csec.init_rng().unwrap();
-    csec.generate_rnd(&mut uc_rnd_buf).unwrap();
-    csec.load_plainkey(&UC_PLAINKEY).unwrap();
-    csec.encrypt_cbc(&uc_plaintext, &uc_initvct, &mut uc_enctext, MSG_LEN)
+    csec.generate_rnd(&mut rnd_buf).unwrap();
+    csec.load_plainkey(&PLAINKEY).unwrap();
+    csec.encrypt_cbc(&plaintext, array_ref![initvct, 0, 16], &mut enctext)
         .unwrap();
-    csec.decrypt_cbc(&uc_enctext, &uc_initvct, &mut uc_dectext, MSG_LEN)
+    csec.decrypt_cbc(&enctext, array_ref![initvct, 0, 16], &mut dectext)
         .unwrap();
-    assert!(uc_plaintext == &uc_dectext[..]);
+    assert!(plaintext == &dectext[..]);
 
     // light green LED
     p.PCC.pcc_portd.modify(|_, w| w.cgc()._1());
