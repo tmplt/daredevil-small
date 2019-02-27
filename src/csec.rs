@@ -21,9 +21,9 @@ enum Command {
     LoadKey,
     LoadPlainKey,
     ExportRamKey,
-    InitRng = 0xa,
+    InitRng,
     ExtendSeed,
-    Rng = 0xc,
+    Rng,
     Reserved1,
     BootFailure,
     BootOk,
@@ -45,9 +45,10 @@ enum Format {
 }
 
 /// Specifies if the information is the first of a following function call.
+#[derive(PartialEq)]
 enum Sequence {
     First = 0x0,
-    Subsequent = 0x1,
+    Subsequent,
 }
 
 /// Specify the KeyID to be used to implement the requested cryptographic operation.
@@ -66,7 +67,7 @@ enum KeyID {
     Key8,
     Key9,
     Key10,
-    RamKey = 0xF,
+    RamKey = 0xf,
     Key11 = 0x14,
     Key12,
     Key13,
@@ -129,6 +130,7 @@ const LOWER_HALF_SHIFT: u32 = 0x0;
 const UPPER_HALF_MASK: u32 = 0xffff0000;
 const UPPER_HALF_SHIFT: u32 = 0x10;
 const BYTES_TO_PAGES_SHIFT: u32 = 4;
+const MAX_PAGES: usize = 7;
 
 impl<'a> CSEc<'a> {
     pub fn init(
@@ -221,45 +223,43 @@ impl<'a> CSEc<'a> {
             (input.len() >> BYTES_TO_PAGES_SHIFT) as u16,
         );
 
-        let mut begin_idx = 0;
-        let mut process = |command,
-                           avail_pages,
-                           page_offset,
-                           sequence,
-                           remaining_bytes|
-         -> Result<usize, CommandResult> {
+        fn process_blocks(
+            cse: &CSEc,
+            input: &[u8],
+            output: &mut [u8],
+            sequence: Sequence,
+            command: Command,
+        ) -> Result<(), CommandResult> {
+            // On first call page 1 is occupied by the initialization vector, so we have one less.
+            // On Subsequent calls we have all at our disposal.
+            let (page_offset, avail_pages) = if sequence == Sequence::First {
+                (PAGE_2_OFFSET, MAX_PAGES - 1)
+            } else {
+                (PAGE_1_OFFSET, MAX_PAGES)
+            };
+
             // How many bytes are we processing this round?
-            let bytes = core::cmp::min(remaining_bytes, avail_pages * PAGE_SIZE_IN_BYTES);
+            let bytes = core::cmp::min(input.len(), avail_pages * PAGE_SIZE_IN_BYTES);
 
-            // Process the bytes
-            self.write_command_bytes(page_offset, &input[begin_idx..begin_idx + bytes], bytes);
-            self.write_command_header(command, Format::Copy, sequence, KeyID::RamKey)?;
-            self.read_command_bytes(
-                page_offset,
-                &mut output[begin_idx..begin_idx + bytes],
-                bytes,
-            );
+            cse.write_command_bytes(page_offset, &input[..bytes], bytes);
+            cse.write_command_header(command, Format::Copy, sequence, KeyID::RamKey)?;
+            cse.read_command_bytes(page_offset, &mut output[..bytes], bytes);
 
-            // Prepare for the next round
-            begin_idx += bytes;
-            Ok(remaining_bytes - bytes)
-        };
-
-        // Upon the initial call the initialization vector takes up the first page, so we have 6
-        // pages to our disposal. Subsequent calls may use all 7 if required.
-        let mut remaining_bytes = input.len();
-        remaining_bytes = process(command, 6, PAGE_2_OFFSET, Sequence::First, remaining_bytes)?;
-        while remaining_bytes != 0 {
-            remaining_bytes = process(
-                command,
-                7,
-                PAGE_1_OFFSET,
-                Sequence::Subsequent,
-                remaining_bytes,
-            )?;
+            // Process remaining blocks, if any
+            if input.len() - bytes != 0 {
+                process_blocks(
+                    cse,
+                    &input[bytes..],
+                    &mut output[bytes..],
+                    Sequence::Subsequent,
+                    command,
+                )
+            } else {
+                Ok(())
+            }
         }
 
-        Ok(())
+        process_blocks(self, input, output, Sequence::First, command)
     }
 
     /// Writes the command header to `CSE_PRAM`, triggering the CSEc operation.
