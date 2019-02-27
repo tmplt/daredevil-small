@@ -1,5 +1,11 @@
 target remote :2331
 
+define reload
+load
+monitor reset
+continue
+end
+
 monitor speed 1000
 monitor clrbp
 monitor reset
