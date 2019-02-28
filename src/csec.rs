@@ -70,6 +70,12 @@
 //! - Is the key or the init vector considered a secret?
 //! - Document constants?
 //! - refer to related reference chapter
+//!
+//! # Notes
+//! - The IV must be random and unpredictable.
+//! - The IV can be (and usually is) made public.
+//! - The IV and ciphertext must be authenticated with a MAC (e.g. HMAC).
+//! - The key is secret; AES is a symmetrical encryption.
 #![allow(dead_code)]
 
 use crate::utils;
