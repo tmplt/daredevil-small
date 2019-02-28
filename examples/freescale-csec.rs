@@ -88,8 +88,7 @@ unsafe fn main() -> ! {
     csec.load_plainkey(&PLAINKEY).unwrap();
     csec.encrypt_cbc(&plaintext, &rnd_buf, &mut enctext)
         .unwrap();
-    csec.decrypt_cbc(&enctext, &rnd_buf, &mut dectext)
-        .unwrap();
+    csec.decrypt_cbc(&enctext, &rnd_buf, &mut dectext).unwrap();
     assert!(plaintext == &dectext[..]);
 
     // light green LED
