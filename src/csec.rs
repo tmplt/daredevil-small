@@ -72,7 +72,7 @@
 //! - refer to related reference chapter
 //!
 //! # Notes
-//! - The IV must be random and unpredictable.
+//! - The IV must be random and unpredictable (for each message).
 //! - The IV can be (and usually is) made public.
 //! - The IV and ciphertext must be authenticated with a MAC (e.g. HMAC).
 //! - The key is secret; AES is a symmetrical encryption.
