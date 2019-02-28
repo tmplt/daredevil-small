@@ -249,7 +249,7 @@ impl<'a> CSEc<'a> {
         )?;
 
         // Read the resulted random bytes
-        self.read_command_bytes(PAGE_1_OFFSET, buf, PAGE_SIZE_IN_BYTES);
+        self.read_command_bytes(PAGE_1_OFFSET, buf);
 
         Ok(())
     }
@@ -257,7 +257,7 @@ impl<'a> CSEc<'a> {
     /// Updates the RAM key memory slot with a 128-bit plaintext.
     pub fn load_plainkey(&self, key: &[u8; PAGE_SIZE_IN_BYTES]) -> Result<(), CommandResult> {
         // Write the bytes of the key
-        self.write_command_bytes(PAGE_1_OFFSET, key, key.len());
+        self.write_command_bytes(PAGE_1_OFFSET, key);
 
         self.write_command_header(
             Command::LoadPlainKey,
@@ -297,7 +297,7 @@ impl<'a> CSEc<'a> {
         assert!(output.len() >= input.len());
 
         // Write the initialization vector and how many pages we are going to proccess
-        self.write_command_bytes(PAGE_1_OFFSET, &iv[..], iv.len());
+        self.write_command_bytes(PAGE_1_OFFSET, iv);
         self.write_command_halfword(
             PAGE_LENGTH_OFFSET,
             (input.len() >> BYTES_TO_PAGES_SHIFT) as u16,
@@ -321,9 +321,9 @@ impl<'a> CSEc<'a> {
             // How many bytes are we processing this round?
             let bytes = core::cmp::min(input.len(), avail_pages * PAGE_SIZE_IN_BYTES);
 
-            cse.write_command_bytes(page_offset, &input[..bytes], bytes);
+            cse.write_command_bytes(page_offset, &input[..bytes]);
             cse.write_command_header(command, Format::Copy, sequence, KeyID::RamKey)?;
-            cse.read_command_bytes(page_offset, &mut output[..bytes], bytes);
+            cse.read_command_bytes(page_offset, &mut output[..bytes]);
 
             // Process remaining blocks, if any
             if input.len() - bytes != 0 {
@@ -432,11 +432,11 @@ impl<'a> CSEc<'a> {
     }
 
     /// Reads command bytes from `CSE_PRAM` from a 32-bit aligned offset.
-    fn read_command_bytes(&self, offset: usize, buf: &mut [u8], bytes: usize) {
-        assert!(buf.len() >= bytes);
+    fn read_command_bytes(&self, offset: usize, buf: &mut [u8]) {
+        // TODO: ensure we don't read past available pages
 
         let mut i = 0;
-        while (i + 3) < bytes {
+        while (i + 3) < buf.len() {
             let page = self.read_pram((offset + i) >> 2);
 
             buf[i] = page[0];
@@ -446,18 +446,18 @@ impl<'a> CSEc<'a> {
             i += 4;
         }
 
-        while i < bytes {
+        while i < buf.len() {
             buf[i] = self.read_command_byte(offset + i);
             i += 1;
         }
     }
 
     /// Writes command bytes from `CSE_PRAM` from a 32-bit aligned offset.
-    fn write_command_bytes(&self, offset: usize, buf: &[u8], bytes: usize) {
-        assert!(buf.len() >= bytes);
+    fn write_command_bytes(&self, offset: usize, buf: &[u8]) {
+        // TODO: ensure we don't write past available pages
 
         let mut i = 0;
-        while (i + 3) < bytes {
+        while (i + 3) < buf.len() {
             self.write_pram(
                 (offset + i) >> 2,
                 &[buf[i], buf[i + 1], buf[i + 2], buf[i + 3]],
@@ -465,7 +465,7 @@ impl<'a> CSEc<'a> {
             i += 4;
         }
 
-        while i < bytes {
+        while i < buf.len() {
             self.write_command_byte(offset + i, buf[i]);
             i += 1;
         }
