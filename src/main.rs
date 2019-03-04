@@ -7,17 +7,17 @@ use s32k144::Interrupt;
 use s32k144evb::wdog;
 
 pub mod can;
+pub mod adc;
 pub mod csec;
-pub mod panic;
 pub mod utils;
+pub mod panic;
 
-const MAGIC_SCALAR: u32 = 5000 / 0xfff;
 const PERIOD: u32 = 8_000;
 
 #[app(device = s32k144)]
 const APP: () = {
     // Resources
-    static mut ADC: s32k144::ADC0 = ();
+    static mut ADC: adc::ADC = ();
     static mut CSEc: csec::CSEc = ();
     static mut CAN: can::CAN = ();
 
@@ -33,7 +33,7 @@ const APP: () = {
         // Configure clocks as required for CAN-FD.
         configure_spll_clock(&device.SCG);
 
-        adc_init(&device.PCC, &device.ADC0);
+        let adc = adc::ADC::init(&device.PCC, device.ADC0);
         let can = can::CAN::init(
             &device.PCC,
             device.CAN0,
@@ -55,7 +55,7 @@ const APP: () = {
             .poll_sensor(Instant::now() + PERIOD.cycles())
             .unwrap();
 
-        ADC = device.ADC0;
+        ADC = adc;
         CAN = can;
         CSEc = csec;
     }
@@ -74,15 +74,7 @@ const APP: () = {
         let can = resources.CAN;
         let csec = resources.CSEc;
 
-        // Configure ADC0 channel 15, ADC0_SE15. Translates to pin PTC17.
-        // Must be done every loop; allows us to read from the channel.
-        adc.sc1a.modify(|_, w| w.adch()._00000());
-        adc.sc1a.write(|w| unsafe { w.bits(15) });
-
-        // Read sensor value.
-        while adc.sc1a.read().coco().bit_is_set() == true {} // wait while clock is changed
-        let sensor_values: [u8; 2] =
-            split_u16_to_byte_array((MAGIC_SCALAR * adc.ra.read().bits()) as u16);
+        let sensor_values: [u8; 2] = split_u16_to_byte_array(adc.read());
 
         // Randomize our initialization vector.
         let mut init_vec: [u8; 16] = [0; 16];
@@ -146,19 +138,6 @@ fn configure_spll_clock(scg: &s32k144::SCG) {
                 .divslow().bits(0b10)
         });
         while scg.csr.read().scs().bits() != 6 {} // wait while clock is changed
-    }
-}
-
-fn adc_init(pcc: &s32k144::PCC, adc: &s32k144::ADC0) {
-    unsafe {
-        pcc.pcc_adc0.modify(|_, w| w.cgc()._0()); //Disable clock
-        pcc.pcc_adc0.modify(|_, w| w.pcs()._001()); // PCS=1
-        pcc.pcc_adc0.modify(|_, w| w.cgc()._1()); // Enable Clock
-        adc.sc1a.write(|w| w.bits(0x1F)); // ADCH=1F
-        adc.cfg1.write(|w| w.bits(0x4)); // ADICLK=0
-        adc.cfg2.write(|w| w.bits(0xC)); // SMPLTS=12 (default);
-        adc.sc2.write(|w| w.bits(0x0)); // ADTRG=0
-        adc.sc3.write(|w| w.bits(0x0)); // CAL=0
     }
 }
 
