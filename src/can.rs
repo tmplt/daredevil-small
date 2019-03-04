@@ -96,7 +96,8 @@ impl CAN {
         unsafe {
             self.can.iflag1.write(|w| w.bits(0x1));
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 2].write(|w| w.bits(0xa5112233));
-            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 3].write(|w| w.bits(byte_array_to_u32(payload)));
+            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 3]
+                .write(|w| w.bits(byte_array_to_u32(payload)));
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 1].write(|w| w.bits(0x15540000));
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 0].write(|w| w.bits(0xcc4f0000 | (8 << 16)));
         }

@@ -6,23 +6,26 @@ use rtfm::{app, Instant};
 use s32k144::Interrupt;
 use s32k144evb::wdog;
 
-pub mod can;
 pub mod adc;
+pub mod can;
 pub mod csec;
-pub mod utils;
 pub mod panic;
+pub mod utils;
 
 const PERIOD: u32 = 8_000;
+const PLAINKEY: [u8; 16] = [
+    0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
+];
 
 #[app(device = s32k144)]
 const APP: () = {
     // Resources
     static mut ADC: adc::ADC = ();
-    static mut CSEc: csec::CSEc = ();
+    static mut CSEC: csec::CSEc = ();
     static mut CAN: can::CAN = ();
 
     #[init(schedule = [poll_sensor])]
-    fn init() {
+    fn init() -> init::LateResources {
         // Disable watchdog
         let wdog_settings = wdog::WatchdogSettings {
             enable: false,
@@ -33,6 +36,7 @@ const APP: () = {
         // Configure clocks as required for CAN-FD.
         configure_spll_clock(&device.SCG);
 
+        // Initialize ADC and CAN-FD
         let adc = adc::ADC::init(&device.PCC, device.ADC0);
         let can = can::CAN::init(
             &device.PCC,
@@ -42,22 +46,20 @@ const APP: () = {
             &device.PTD,
         );
 
-        let plainkey: [u8; 16] = [
-            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
-            0x4f, 0x3c,
-        ];
-
+        // Load plainkey and initialize RNG
         let csec = csec::CSEc::init(device.FTFC, device.CSE_PRAM);
         csec.init_rng().unwrap();
-        csec.load_plainkey(&plainkey).unwrap();
+        csec.load_plainkey(&PLAINKEY).unwrap();
 
         schedule
             .poll_sensor(Instant::now() + PERIOD.cycles())
             .unwrap();
 
-        ADC = adc;
-        CAN = can;
-        CSEc = csec;
+        init::LateResources {
+            ADC: adc,
+            CAN: can,
+            CSEC: csec,
+        }
     }
 
     #[idle]
@@ -68,11 +70,11 @@ const APP: () = {
         }
     }
 
-    #[task(resources = [ADC, CAN, CSEc], schedule = [poll_sensor])]
+    #[task(resources = [ADC, CAN, CSEC], schedule = [poll_sensor])]
     fn poll_sensor() {
         let adc = resources.ADC;
         let can = resources.CAN;
-        let csec = resources.CSEc;
+        let csec = resources.CSEC;
 
         let sensor_values: [u8; 2] = split_u16_to_byte_array(adc.read());
 
