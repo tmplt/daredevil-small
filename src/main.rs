@@ -1,4 +1,4 @@
-//! An example that reads a sensor on pin PTC17 and dumps its value over CAN-FD, wrapped in RTFM.
+//! TODO: heavily document the application here.
 #![no_main]
 #![no_std]
 
@@ -6,9 +6,9 @@ use rtfm::{app, Instant};
 use s32k144::Interrupt;
 use s32k144evb::wdog;
 
-mod panic;
-mod csec;
-mod utils;
+pub mod csec;
+pub mod panic;
+pub mod utils;
 
 const MAGIC_SCALAR: u32 = 5000 / 0xfff;
 const MSG_BUF_SIZE: usize = 18;
@@ -30,7 +30,7 @@ const APP: () = {
         };
         let _wdog = wdog::Watchdog::init(&device.WDOG, wdog_settings).unwrap();
 
-        // Settings required for CAN-FD
+        // Configure clocks as required for CAN-FD.
         configure_spll_clock(&device.SCG);
 
         adc_init(&device.PCC, &device.ADC0);
@@ -43,8 +43,8 @@ const APP: () = {
         );
 
         let plainkey: [u8; 16] = [
-            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f,
-            0x3c,
+            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
+            0x4f, 0x3c,
         ];
 
         let csec = csec::CSEc::init(device.FTFC, device.CSE_PRAM);
@@ -81,19 +81,21 @@ const APP: () = {
 
         // Read sensor value.
         while adc.sc1a.read().coco().bit_is_set() == true {} // wait while clock is changed
-        let sensor_values: [u8; 2] = split_u16_to_byte_array((MAGIC_SCALAR * adc.ra.read().bits()) as u16);
+        let sensor_values: [u8; 2] =
+            split_u16_to_byte_array((MAGIC_SCALAR * adc.ra.read().bits()) as u16);
 
-        // Randomize init_vector
-        const MSG_LEN: usize = 16;
-        const RND_BUF_LEN: usize = 16;
-        let mut rnd_buf: [u8; RND_BUF_LEN] = [0; RND_BUF_LEN];
-        csec.generate_rnd(&mut rnd_buf).unwrap();
+        // Randomize our initialization vector.
+        let mut init_vec: [u8; 16] = [0; 16];
+        csec.generate_rnd(&mut init_vec).unwrap();
 
-        // Encrypt data
-        let mut enc_value: [u8; MSG_LEN * 10 + 7] = [0; MSG_LEN * 10 + 7];
-        csec.encrypt_cbc(&sensor_values, &rnd_buf, &mut enc_value).unwrap();
+        // Encrypt the sensor data.
+        let mut payload: [u8; 16 + 2] = [0; 16 + 2];
+        csec.encrypt_cbc(&sensor_values, &init_vec, &mut payload[16..])
+            .unwrap();
 
-        transmit_over_can(&can, &mut enc_value);
+        // Transmit the payload, with a prefixed initialization vector.
+        payload[..16].clone_from_slice(&init_vec);
+        transmit_over_can(&can, &mut payload);
 
         schedule.poll_sensor(scheduled + PERIOD.cycles()).unwrap();
     }
@@ -103,7 +105,6 @@ const APP: () = {
         fn DMA0();
     }
 };
-
 
 fn configure_spll_clock(scg: &s32k144::SCG) {
     unsafe {
@@ -242,10 +243,6 @@ fn flexcan0_init(
     }
 }
 
-//fn crypto_init(ftfc: &s32k144::FTFC, cse_pram: &s32k144::CSE_PRAM, nvic: &s32k144::NVIC) -> csec::CSEc<'_> {
-//    csec
-//}
-
 fn split_u16_to_byte_array(n: u16) -> [u8; 2] {
     let x: u8 = ((n >> 8) & 0xff) as u8;
     let y: u8 = (n & 0xff) as u8;
@@ -255,7 +252,7 @@ fn split_u16_to_byte_array(n: u16) -> [u8; 2] {
 fn byte_array_to_u32(array: &mut [u8]) -> u32 {
     let mut x: u32 = (array[3] as u32) << 24;
     x += (array[2] as u32) << 16;
-    x += (array[1] as u32)  << 8;
+    x += (array[1] as u32) << 8;
     x += array[0] as u32;
     x
 }
@@ -264,9 +261,8 @@ fn transmit_over_can(can: &s32k144::CAN0, payload: &mut [u8]) {
     // FLEXCAN0_transmit_msg
     unsafe {
         can.iflag1.write(|w| w.bits(0x1));
-        let pl: u32 = byte_array_to_u32(payload);
         can.embedded_ram[(0 * MSG_BUF_SIZE) + 2].write(|w| w.bits(0xa5112233));
-        can.embedded_ram[(0 * MSG_BUF_SIZE) + 3].write(|w| w.bits(pl));
+        can.embedded_ram[(0 * MSG_BUF_SIZE) + 3].write(|w| w.bits(byte_array_to_u32(payload)));
         can.embedded_ram[(0 * MSG_BUF_SIZE) + 1].write(|w| w.bits(0x15540000));
         can.embedded_ram[(0 * MSG_BUF_SIZE) + 0].write(|w| w.bits(0xcc4f0000 | (8 << 16)));
     }

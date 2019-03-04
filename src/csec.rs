@@ -209,8 +209,8 @@ fn u8_be_array_from_u32(x: u32) -> [u8; 4] {
 }
 
 pub struct CSEc {
-    ftfc:  s32k144::FTFC,
-    cse_pram:  s32k144::CSE_PRAM,
+    ftfc: s32k144::FTFC,
+    cse_pram: s32k144::CSE_PRAM,
 }
 
 const PAGE_1_OFFSET: usize = 16;
@@ -226,10 +226,7 @@ const BYTES_TO_PAGES_SHIFT: u32 = 4;
 const MAX_PAGES: usize = 7;
 
 impl CSEc {
-    pub fn init(
-        ftfc: s32k144::FTFC,
-        cse_pram: s32k144::CSE_PRAM,
-    ) -> Self {
+    pub fn init(ftfc: s32k144::FTFC, cse_pram: s32k144::CSE_PRAM) -> Self {
         CSEc {
             ftfc: ftfc,
             cse_pram: cse_pram,
