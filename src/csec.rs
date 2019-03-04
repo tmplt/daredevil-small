@@ -79,7 +79,6 @@
 #![allow(dead_code)]
 
 use crate::utils;
-use core::mem::transmute;
 use s32k144;
 
 /// CSEc commands which follow the same values as the SHE command defenition.
@@ -199,6 +198,16 @@ impl CommandResult {
             _ => panic!("Unknown CommandResult value: {}", value),
         }
     }
+}
+
+/// Safely transforms a `u32` to Big-Endian `[u8; 4]`.
+fn u8_be_array_from_u32(x: u32) -> [u8; 4] {
+    [
+        ((x >> 24) & 0xff) as u8,
+        ((x >> 16) & 0xff) as u8,
+        ((x >> 8) & 0xff) as u8,
+        ((x >> 0) & 0xff) as u8,
+    ]
 }
 
 pub struct CSEc<'a> {
@@ -406,7 +415,7 @@ impl<'a> CSEc<'a> {
             page |= ((halfword as u32) << LOWER_HALF_SHIFT) & UPPER_HALF_MASK;
         }
 
-        let newpage: [u8; 4] = unsafe { transmute(page.to_be()) };
+        let newpage = u8_be_array_from_u32(page);
         self.write_pram(offset >> 2, &newpage);
     }
 
@@ -514,7 +523,7 @@ impl<'a> CSEc<'a> {
             _ => panic!(), // absurd
         };
 
-        unsafe { transmute(page.to_be()) }
+        u8_be_array_from_u32(page)
     }
 
     fn write_pram(&self, n: usize, buf: &[u8; 4]) {
