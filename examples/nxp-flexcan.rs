@@ -38,8 +38,8 @@ unsafe fn main() -> ! {
     });
     #[rustfmt::skip]
     p.SCG.sosccfg.write(|w| {
-        w.bits(0x24) // XXX: Bit 6 is unused in this field.
-        //w.hgo()._1() // Set crystal oscillator for high gain
+        w.range().bits(0b10) // Medium frequency range selected
+            .erefs()._1() // Select internal crystal oscillator
     });
     while p.SCG.sosccsr.read().lk().is_1() {} // Ensure SOSCCSR unlocked
     p.SCG.sosccsr.write(|w| w.soscen()._1());
@@ -73,14 +73,11 @@ unsafe fn main() -> ! {
     p.CAN0.mcr.write(|w| w.mdis()._1()); // Disable FlexCAN module
     p.CAN0.ctrl1.write(|w| w.clksrc()._0()); // Set oscillator clock to be CAN engine clock
     p.CAN0.mcr.write(|w| {
-        w.mdis()._0() // Reenable FlexCAN, this enables freeze mode and halt
+        w.mdis()._0() // Enable FlexCAN
     });
 
-    let _ = 0;
-
-    // TODO: Lookup why this does not work in the SVD code
-    // .frzack().is_1()
-    while p.CAN0.mcr.read().bits() != 0x5980_000f {}
+    // Wait until freeze mode is disabled
+    while p.CAN0.mcr.read().frzack().is_0() {}
 
     #[rustfmt::skip]
     p.CAN0.ctrl1.write(|w| { // Set Bus Speed to 500kbit/s
@@ -109,10 +106,9 @@ unsafe fn main() -> ! {
 
     let _ = 0;
 
-    // TODO: Yet again, does not work, guessing the SVD file is wrong
-    //while p.CAN0.mcr.read().frzack().is_1() {}
-    //while !p.CAN0.mcr.read().notrdy().is_0() {}
-    while p.CAN0.mcr.read().bits() != 0x0000_001f {}
+    // Check that Freeze mode is enabled and that CAN is ready
+    while p.CAN0.mcr.read().frzack().is_1() {}
+    while !p.CAN0.mcr.read().notrdy().is_0() {}
 
     // PORT_init
     p.PCC.pcc_porte.modify(|_, w| w.cgc()._1()); // Enable PortE
