@@ -3,12 +3,14 @@
 //! This module is an interface implementation for the board's hardware-accelerated cryptographic
 //! functions. It was derived from [Freescale's `security_pal/`
 //! example](https://gitlab.com/rust-daredevil-group/daredevil-small/tree/master/refs).
-//! A range of funtions are supported, but this module currently only implements
+//! A range of functions are silicon-supported, but this module currently only implements
 //! * random number generation,
-//! * plainkey loading into RAM slow, and
+//! * plainkey loading into RAM slot, and
 //! * AES-CBC-128 encryption/decryption.
 //!
 //! All public functions of this module return a `Result<(), CommandResult>`.
+//!
+//! Hardware used in this module is documented in the reference manual, § 35.6.13, p. 847.
 //!
 //! # Usage
 //!
@@ -66,16 +68,13 @@
 //! The provided key is loaded onto the board's RAM key slot. Multiple key slots are available, but
 //! support for those are not implemented.
 //!
-//! # TODO
-//! - Is the key or the init vector considered a secret?
-//! - Document constants?
-//! - refer to related reference chapter
+//! # Security
+//! During encryption the initialization vector must be random and unpredictable (for each
+//! message), and may be made public after encryption. It is then recommended to use the output of
+//! `generate_rnd()` as the initialization vector for an encryption.
 //!
-//! # Notes
-//! - The IV must be random and unpredictable (for each message).
-//! - The IV can be (and usually is) made public.
-//! - The IV and ciphertext must be authenticated with a MAC (e.g. HMAC).
-//! - The key is secret; AES is a symmetrical encryption.
+//! The initialization vector is required for decryption, so it is recommended to prefix it to the
+//! sent message. Only the key is a secret.
 #![allow(dead_code)]
 
 use crate::utils;
@@ -286,33 +285,33 @@ impl<'a> CSEc<'a> {
     pub fn encrypt_cbc(
         &self,
         plaintext: &[u8],
-        iv: &[u8; PAGE_SIZE_IN_BYTES],
+        init_vec: &[u8; PAGE_SIZE_IN_BYTES],
         ciphertext: &mut [u8],
     ) -> Result<(), CommandResult> {
-        self.handle_cbc(Command::EncCbc, plaintext, iv, ciphertext)
+        self.handle_cbc(Command::EncCbc, plaintext, init_vec, ciphertext)
     }
 
     /// Perform AES-128 decryption in CBC mode of the input cipher text buffer.
     pub fn decrypt_cbc(
         &self,
         ciphertext: &[u8],
-        iv: &[u8; PAGE_SIZE_IN_BYTES],
+        init_vec: &[u8; PAGE_SIZE_IN_BYTES],
         plaintext: &mut [u8],
     ) -> Result<(), CommandResult> {
-        self.handle_cbc(Command::DecCbc, ciphertext, iv, plaintext)
+        self.handle_cbc(Command::DecCbc, ciphertext, init_vec, plaintext)
     }
 
     fn handle_cbc(
         &self,
         command: Command,
         input: &[u8],
-        iv: &[u8; PAGE_SIZE_IN_BYTES],
+        init_vec: &[u8; PAGE_SIZE_IN_BYTES],
         output: &mut [u8],
     ) -> Result<(), CommandResult> {
         assert!(output.len() >= input.len());
 
         // Write the initialization vector and how many pages we are going to proccess
-        self.write_command_bytes(PAGE_1_OFFSET, iv);
+        self.write_command_bytes(PAGE_1_OFFSET, init_vec);
         self.write_command_halfword(
             PAGE_LENGTH_OFFSET,
             (input.len() >> BYTES_TO_PAGES_SHIFT) as u16,
@@ -336,6 +335,8 @@ impl<'a> CSEc<'a> {
             // How many bytes are we processing this round?
             let bytes = core::cmp::min(input.len(), avail_pages * PAGE_SIZE_IN_BYTES);
 
+            // Write our input bytes from `input`, process them, and read the processed bytes into
+            // `output`.
             cse.write_command_bytes(page_offset, &input[..bytes]);
             cse.write_command_header(command, Format::Copy, sequence, KeyID::RamKey)?;
             cse.read_command_bytes(page_offset, &mut output[..bytes]);
@@ -405,6 +406,7 @@ impl<'a> CSEc<'a> {
     }
 
     /// Writes a command half word to `CSE_PRAM` at a 16-bit aligned offset.
+    /// Ported verbatim from reference code.
     fn write_command_halfword(&self, offset: usize, halfword: u16) {
         let mut page = u32::from_be_bytes(self.read_pram(offset >> 2));
         if (offset & 2) != 0 {
@@ -420,6 +422,7 @@ impl<'a> CSEc<'a> {
     }
 
     /// Reads a single byte from `CSE_PRAM`.
+    /// Ported verbatim from reference code.
     fn read_command_byte(&self, offset: usize) -> u8 {
         let page = self.read_pram(offset >> 2);
 
@@ -433,6 +436,7 @@ impl<'a> CSEc<'a> {
     }
 
     /// Writes a single byte from `CSE_PRAM`.
+    /// Ported verbatim from reference code.
     fn write_command_byte(&self, offset: usize, byte: u8) {
         let page = self.read_pram(offset >> 2);
         let page: [u8; 4] = match offset & 0x3 {
@@ -447,6 +451,7 @@ impl<'a> CSEc<'a> {
     }
 
     /// Reads command bytes from `CSE_PRAM` from a 32-bit aligned offset.
+    /// Ported verbatim from reference code.
     fn read_command_bytes(&self, offset: usize, buf: &mut [u8]) {
         // TODO: ensure we don't read past available pages
 
@@ -468,6 +473,7 @@ impl<'a> CSEc<'a> {
     }
 
     /// Writes command bytes from `CSE_PRAM` from a 32-bit aligned offset.
+    /// Ported verbatim from reference code.
     fn write_command_bytes(&self, offset: usize, buf: &[u8]) {
         // TODO: ensure we don't write past available pages
 
