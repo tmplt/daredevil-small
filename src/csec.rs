@@ -22,7 +22,7 @@
 //!
 //! let mut rnd_buf: [u8; 16] = [0; 16];
 //!
-//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
+//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
 //! csec.init_rng().unwrap();
 //! csec.generate_rnd(&mut rnd_buf).unwrap();
 //! assert!(!rnd_buf.iter().all(|x| *x == 0)); // very likely
@@ -56,7 +56,7 @@
 //! let mut dectext: [u8; 20] = [0; 20];
 //!
 //!
-//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
+//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
 //! csec.load_plainkey(&PLAINKEY).unwrap();
 //! csec.encrypt_cbc(&plaintext, array_ref![initvct, 0, 20], &mut enctext)
 //!     .unwrap();
@@ -77,7 +77,6 @@
 //! sent message. Only the key is a secret.
 #![allow(dead_code)]
 
-use crate::utils;
 use s32k144;
 
 /// CSEc commands which follow the same values as the SHE command defenition.
@@ -230,11 +229,7 @@ impl<'a> CSEc<'a> {
     pub fn init(
         ftfc: &'a s32k144::FTFC,
         cse_pram: &'a s32k144::CSE_PRAM,
-        nvic: &mut s32k144::NVIC,
     ) -> Self {
-        nvic.enable(s32k144::Interrupt::FTFC);
-        utils::sleep(1);
-
         CSEc {
             ftfc: ftfc,
             cse_pram: cse_pram,

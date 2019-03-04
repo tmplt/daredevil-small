@@ -19,7 +19,6 @@ mod utils;
 #[entry]
 unsafe fn main() -> ! {
     let p = s32k144::Peripherals::take().unwrap();
-    let mut cp = s32k144::CorePeripherals::take().unwrap();
 
     // Disable watchdog
     p.WDOG.cnt.write(|w| w.bits(0xd928c520)); // unlock, magical number
@@ -82,7 +81,7 @@ unsafe fn main() -> ! {
 
     assert_eq!(plaintext.len(), MSG_LEN * 10 + 7);
 
-    let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM, &mut cp.NVIC);
+    let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
     csec.init_rng().unwrap();
     csec.generate_rnd(&mut rnd_buf).unwrap();
     csec.load_plainkey(&PLAINKEY).unwrap();
