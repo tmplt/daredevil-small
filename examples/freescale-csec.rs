@@ -81,7 +81,7 @@ unsafe fn main() -> ! {
 
     assert_eq!(plaintext.len(), MSG_LEN * 10 + 7);
 
-    let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
+    let csec = csec::CSEc::init(p.FTFC, p.CSE_PRAM);
     csec.init_rng().unwrap();
     csec.generate_rnd(&mut rnd_buf).unwrap();
     csec.load_plainkey(&PLAINKEY).unwrap();
