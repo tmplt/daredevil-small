@@ -3,7 +3,6 @@
 //! Arbitration/nominal phase parameters: 500 kbit/s, 80.0%, sjw=16, tseg1=63, tseg2=16
 //! Data phase parameters: 2000 kbit/s, 80.0%, sjw=4, tseg1=15, tseg2=4
 
-use core::mem::transmute;
 use s32k144;
 
 const MSG_BUF_SIZE: usize = 18;

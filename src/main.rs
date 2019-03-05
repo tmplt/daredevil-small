@@ -77,15 +77,16 @@ const APP: () = {
         let can = resources.CAN;
         let csec = resources.CSEC;
 
-        let sensor_values: [u8; 2] = split_u16_to_byte_array(adc.read());
+        let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        u8_array_from_16_array(&adc.read(), &mut sensor_bytes);
 
         // Randomize our initialization vector.
         let mut init_vec: [u8; 16] = [0; 16];
         csec.generate_rnd(&mut init_vec).unwrap();
 
         // Encrypt the sensor data.
-        let mut payload: [u8; 16 + 2] = [0; 16 + 2];
-        csec.encrypt_cbc(&sensor_values, &init_vec, &mut payload[16..])
+        let mut payload: [u8; 16 + adc::CHANNEL_COUNT * 2] = [0; 16 + adc::CHANNEL_COUNT * 2];
+        csec.encrypt_cbc(&sensor_bytes, &init_vec, &mut payload[16..])
             .unwrap();
 
         // Transmit the payload, with a prefixed initialization vector.
@@ -101,8 +102,11 @@ const APP: () = {
     }
 };
 
-fn split_u16_to_byte_array(n: u16) -> [u8; 2] {
-    let x: u8 = ((n >> 8) & 0xff) as u8;
-    let y: u8 = (n & 0xff) as u8;
-    [x, y]
+fn u8_array_from_16_array(input: &[u16], output: &mut [u8]) {
+    assert!(output.len() >= input.len() * 2);
+
+    for i in 0..input.len() {
+        output[i * 2] = ((input[i] & 0xff00) >> 8) as u8;
+        output[i * 2 + 1] = ((input[i] & 0xff) >> 0) as u8;
+    }
 }
