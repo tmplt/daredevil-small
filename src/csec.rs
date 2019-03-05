@@ -302,11 +302,12 @@ impl CSEc {
     ) -> Result<(), CommandResult> {
         assert!(output.len() >= input.len());
 
-        // Write the initialization vector and how many pages we are going to proccess
+        // Write the initialization vector and how many pages we are going to process
         self.write_command_bytes(PAGE_1_OFFSET, init_vec);
         self.write_command_halfword(
             PAGE_LENGTH_OFFSET,
-            (input.len() >> BYTES_TO_PAGES_SHIFT) as u16,
+            // At least one page has to be processed.
+            core::cmp::max((input.len() >> BYTES_TO_PAGES_SHIFT) as u16, 1),
         );
 
         fn process_blocks(
