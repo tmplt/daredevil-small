@@ -131,13 +131,19 @@ unsafe fn main() -> ! {
     p.CAN0.ctrl2.modify(|_, w| w.isocanfden()._1());
 
     // Negate FlexCAN 1 halt state & enable CAN FD for 32 MBs
-    p.CAN0.mcr.write(|w| w.bits(0x0000081F));
+    //p.CAN0.mcr.write(|w| w.bits(0x0000081F));
 
     // TODO: Lookup what is wrong with SVD2Rust in this case
-    //p.CAN0.mcr.write(|w| {
-    //    w.maxmb().bits(0b001_1111)
-    //        .fden()._1()
-    //});
+    p.CAN0.mcr.write(|w| {
+        w.mdis()._0()
+            .frz()._0() // Disable Freeze
+            .rfen()._0() // Disable Rx FIFO
+            .halt()._0() // Go out of Freeze mode
+            .fden()._1() // Enable CAN FD
+            .supv()._0() // Enable FlexCAN User mode
+            .maxmb().bits(0b001_1111)
+
+    });
 
     // Wait for FRZACK to clear and module ready
     while p.CAN0.mcr.read().frzack().is_1() {}
