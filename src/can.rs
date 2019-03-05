@@ -1,5 +1,9 @@
 //! Ad-hoc CAN-FD implementation
+//!
+//! Arbitration/nominal phase parameters: 500 kbit/s, 80.0%, sjw=16, tseg1=63, tseg2=16
+//! Data phase parameters: 2000 kbit/s, 80.0%, sjw=4, tseg1=15, tseg2=4
 
+use core::mem::transmute;
 use s32k144;
 
 const MSG_BUF_SIZE: usize = 18;
@@ -94,20 +98,23 @@ impl CAN {
 
     pub fn transmit(&self, payload: &[u8]) {
         unsafe {
+            // Clear interrupt flag, sending the message
             self.can.iflag1.write(|w| w.bits(0x1));
-            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 2].write(|w| w.bits(0xa5112233));
-            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 3]
-                .write(|w| w.bits(byte_array_to_u32(payload)));
+
+            // Write headers?
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 1].write(|w| w.bits(0x15540000));
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 0].write(|w| w.bits(0xcc4f0000 | (8 << 16)));
+
+            // Write the payload into [u8; 4] sections
+            for i in 0..core::cmp::min(64, payload.len()) {
+                self.can.embedded_ram[(0 * MSG_BUF_SIZE) + (i / 4)].modify(|_, w| match i % 4 {
+                    0 => w.data_byte_0().bits(payload[i]),
+                    1 => w.data_byte_1().bits(payload[i]),
+                    2 => w.data_byte_2().bits(payload[i]),
+                    3 => w.data_byte_3().bits(payload[i]),
+                    _ => unreachable!(),
+                });
+            }
         }
     }
-}
-
-fn byte_array_to_u32(array: &[u8]) -> u32 {
-    let mut x: u32 = (array[3] as u32) << 24;
-    x += (array[2] as u32) << 16;
-    x += (array[1] as u32) << 8;
-    x += array[0] as u32;
-    x
 }
