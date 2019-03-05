@@ -78,6 +78,7 @@ unsafe fn main() -> ! {
     let plaintext: &[u8] = "Key:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789ab6666666".as_bytes();
     let mut enctext: [u8; MSG_LEN * 10 + 7] = [0; MSG_LEN * 10 + 7];
     let mut dectext: [u8; MSG_LEN * 10 + 7] = [0; MSG_LEN * 10 + 7];
+    let mut cmac: [u8; 16] = [0; 16];
 
     assert_eq!(plaintext.len(), MSG_LEN * 10 + 7);
 
@@ -88,6 +89,7 @@ unsafe fn main() -> ! {
     csec.encrypt_cbc(&plaintext, &rnd_buf, &mut enctext)
         .unwrap();
     csec.decrypt_cbc(&enctext, &rnd_buf, &mut dectext).unwrap();
+    csec.generate_mac(&plaintext, &mut cmac).unwrap();
     assert!(plaintext == &dectext[..]);
 
     // light green LED

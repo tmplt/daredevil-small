@@ -75,6 +75,10 @@
 //!
 //! The initialization vector is required for decryption, so it is recommended to prefix it to the
 //! sent message. Only the key is a secret.
+//!
+//! # TODO
+//! - Fix `CommandResult::SequenceError` when MAC generation is done before `handle_cbc()`.
+//! Remaining bits in reserved field during CBC?
 #![allow(dead_code)]
 
 use s32k144;
@@ -293,6 +297,49 @@ impl CSEc {
         self.handle_cbc(Command::DecCbc, ciphertext, init_vec, plaintext)
     }
 
+    /// Generate a 128-bit Message Authentication Code for `input`.
+    pub fn generate_mac(&self, input: &[u8], output: &mut [u8]) -> Result<(), CommandResult> {
+        assert!(output.len() >= 16);
+        const MESSAGE_LENGTH_OFFSET: usize = 0xc;
+
+        // self.write_command_words(MESSAGE_LENGTH_OFFSET, &[input.len() as u32]);
+
+        // Write how long our message is
+        let mut page = self.read_pram(MESSAGE_LENGTH_OFFSET >> 2);
+        page[3] = ((input.len() & 0xff000000) >> 24) as u8;
+        page[2] = ((input.len() & 0x00ff0000) >> 16) as u8;
+        page[1] = ((input.len() & 0x0000ff00) >> 8) as u8;
+        page[0] = ((input.len() & 0x000000ff) >> 0) as u8;
+        self.write_pram(MESSAGE_LENGTH_OFFSET >> 2, &page);
+
+        fn process_blocks(
+            cse: &CSEc,
+            input: &[u8],
+            sequence: Sequence,
+        ) -> Result<(), CommandResult> {
+            // How many bytes are we processing this round?
+            let bytes = core::cmp::min(input.len(), MAX_PAGES * PAGE_SIZE_IN_BYTES);
+
+            // Write out input bytes from `input` and process them.
+            cse.write_command_bytes(PAGE_1_OFFSET, &input[..bytes]);
+            cse.write_command_header(Command::GenerateMac, Format::Copy, sequence, KeyID::RamKey)?;
+
+            // Process remaining bytes, if any
+            if input.len() - bytes != 0 {
+                process_blocks(cse, &input[bytes..], Sequence::Subsequent)
+            } else {
+                Ok(())
+            }
+        }
+
+        process_blocks(self, input, Sequence::First)?;
+
+        // Read out generated MAC
+        self.read_command_bytes(PAGE_2_OFFSET, &mut output[..PAGE_SIZE_IN_BYTES]);
+
+        Ok(())
+    }
+
     fn handle_cbc(
         &self,
         command: Command,
@@ -365,7 +412,8 @@ impl CSEc {
             | Command::Rng
             | Command::LoadPlainKey
             | Command::EncCbc
-            | Command::DecCbc => (),
+            | Command::DecCbc
+            | Command::GenerateMac => (),
             _ => unimplemented!("Command {:?}", cmd),
         };
 
@@ -384,6 +432,15 @@ impl CSEc {
         match status {
             CommandResult::NoError => Ok(()),
             _ => Err(status),
+        }
+    }
+
+    fn write_command_words(&self, offset: usize, words: &[u32]) {
+        for i in 0..words.len() {
+            let upper = ((words[i] & 0xffff0000) >> 16) as u16;
+            let lower = ((words[i] & 0xffff) >> 0) as u16;
+            self.write_command_halfword(offset, upper);
+            self.write_command_halfword(offset + 2, lower);
         }
     }
 
