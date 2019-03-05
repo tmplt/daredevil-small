@@ -94,8 +94,13 @@ enum Command {
 
     DecEcb,
     DecCbc,
+
+    /// Implemented!
     GenerateMac,
+
+    /// Implemented!
     VerifyMac,
+
     LoadKey,
 
     /// Implemented!
@@ -228,6 +233,7 @@ const UPPER_HALF_MASK: u32 = 0xffff0000;
 const UPPER_HALF_SHIFT: u32 = 0x10;
 const BYTES_TO_PAGES_SHIFT: u32 = 4;
 const MAX_PAGES: usize = 7;
+const MAC_MESSAGE_LENGTH_OFFSET: usize = 0xc;
 
 impl CSEc {
     pub fn init(ftfc: s32k144::FTFC, cse_pram: s32k144::CSE_PRAM) -> Self {
@@ -298,46 +304,93 @@ impl CSEc {
     }
 
     /// Generate a 128-bit Message Authentication Code for `input`.
-    pub fn generate_mac(&self, input: &[u8], output: &mut [u8]) -> Result<(), CommandResult> {
-        assert!(output.len() >= 16);
-        const MESSAGE_LENGTH_OFFSET: usize = 0xc;
-
-        // self.write_command_words(MESSAGE_LENGTH_OFFSET, &[input.len() as u32]);
+    pub fn generate_mac(&self, message: &[u8], mac: &mut [u8]) -> Result<(), CommandResult> {
+        assert!(mac.len() >= 16);
 
         // Write how long our message is
-        let mut page = self.read_pram(MESSAGE_LENGTH_OFFSET >> 2);
-        page[3] = ((input.len() & 0xff000000) >> 24) as u8;
-        page[2] = ((input.len() & 0x00ff0000) >> 16) as u8;
-        page[1] = ((input.len() & 0x0000ff00) >> 8) as u8;
-        page[0] = ((input.len() & 0x000000ff) >> 0) as u8;
-        self.write_pram(MESSAGE_LENGTH_OFFSET >> 2, &page);
+        let mut page = self.read_pram(MAC_MESSAGE_LENGTH_OFFSET >> 2);
+        page[3] = ((message.len() & 0xff000000) >> 24) as u8;
+        page[2] = ((message.len() & 0x00ff0000) >> 16) as u8;
+        page[1] = ((message.len() & 0x0000ff00) >> 8) as u8;
+        page[0] = ((message.len() & 0x000000ff) >> 0) as u8;
+        self.write_pram(MAC_MESSAGE_LENGTH_OFFSET >> 2, &page);
 
         fn process_blocks(
             cse: &CSEc,
-            input: &[u8],
+            message: &[u8],
             sequence: Sequence,
         ) -> Result<(), CommandResult> {
             // How many bytes are we processing this round?
-            let bytes = core::cmp::min(input.len(), MAX_PAGES * PAGE_SIZE_IN_BYTES);
+            let bytes = core::cmp::min(message.len(), MAX_PAGES * PAGE_SIZE_IN_BYTES);
 
-            // Write out input bytes from `input` and process them.
-            cse.write_command_bytes(PAGE_1_OFFSET, &input[..bytes]);
+            // Write out message bytes from `message` and process them.
+            cse.write_command_bytes(PAGE_1_OFFSET, &message[..bytes]);
             cse.write_command_header(Command::GenerateMac, Format::Copy, sequence, KeyID::RamKey)?;
 
             // Process remaining bytes, if any
-            if input.len() - bytes != 0 {
-                process_blocks(cse, &input[bytes..], Sequence::Subsequent)
+            if message.len() - bytes != 0 {
+                process_blocks(cse, &message[bytes..], Sequence::Subsequent)
             } else {
                 Ok(())
             }
         }
 
-        process_blocks(self, input, Sequence::First)?;
+        process_blocks(self, message, Sequence::First)?;
 
         // Read out generated MAC
-        self.read_command_bytes(PAGE_2_OFFSET, &mut output[..PAGE_SIZE_IN_BYTES]);
+        self.read_command_bytes(PAGE_2_OFFSET, &mut mac[..PAGE_SIZE_IN_BYTES]);
 
         Ok(())
+    }
+
+    pub fn verify_mac(&self, message: &[u8], mac: &[u8; 16]) -> Result<bool, CommandResult> {
+        // A length of 0 is interpreted by SHE to compare all bits of `mac`.
+        assert!(message.len() > 0);
+
+        // Write how long our message is
+        let mut page = self.read_pram(MAC_MESSAGE_LENGTH_OFFSET >> 2);
+        page[3] = ((message.len() & 0xff000000) >> 24) as u8;
+        page[2] = ((message.len() & 0x00ff0000) >> 16) as u8;
+        page[1] = ((message.len() & 0x0000ff00) >> 8) as u8;
+        page[0] = ((message.len() & 0x000000ff) >> 0) as u8;
+        self.write_pram(MAC_MESSAGE_LENGTH_OFFSET >> 2, &page);
+
+        // Write how long our MAC is
+        self.write_command_halfword(0x8, mac.len() as u16);
+
+        fn process_blocks(
+            cse: &CSEc,
+            message: &[u8],
+            mac: &[u8],
+            sequence: Sequence,
+        ) -> Result<bool, CommandResult> {
+            // How many bytes are we processing this round?
+            // NOTE(-1): last page is used by `mac`.
+            let bytes = core::cmp::min(message.len(), (MAX_PAGES - 1) * PAGE_SIZE_IN_BYTES);
+
+            // Write our `message` bytes
+            cse.write_command_bytes(PAGE_1_OFFSET, &message[..bytes]);
+
+            // Write the `mac` on the next page
+            cse.write_command_bytes(
+                (((PAGE_1_OFFSET + bytes) / PAGE_SIZE_IN_BYTES) + 1) * PAGE_SIZE_IN_BYTES,
+                &mac,
+            );
+
+            cse.write_command_header(Command::VerifyMac, Format::Copy, sequence, KeyID::RamKey)?;
+
+            // Read verification status bits
+            let success = cse.read_command_halfword(PAGE_1_OFFSET + 0x4) == 0;
+
+            // Processing remaining bytes, if any (and if MAC verifies successfully this far)
+            if success && message.len() - bytes != 0 {
+                process_blocks(cse, &message[bytes..], mac, Sequence::Subsequent)
+            } else {
+                Ok(success)
+            }
+        }
+
+        process_blocks(self, message, mac, Sequence::First)
     }
 
     fn handle_cbc(
@@ -413,7 +466,8 @@ impl CSEc {
             | Command::LoadPlainKey
             | Command::EncCbc
             | Command::DecCbc
-            | Command::GenerateMac => (),
+            | Command::GenerateMac
+            | Command::VerifyMac => (),
             _ => unimplemented!("Command {:?}", cmd),
         };
 
