@@ -46,6 +46,10 @@ impl ADC {
         let mut sensor_values: [u16; CHANNEL_COUNT] = [0; CHANNEL_COUNT];
         for i in 0..CHANNEL_COUNT {
             sensor_values[i] = self.read_adc(i);
+
+            // Necessary due to the previous sensor triggering the next in hardware (connected in serial); the MCU must not
+            // read the next sensor until a range has been recorded.
+            utils::sleep(10);
         }
 
         sensor_values
@@ -60,14 +64,6 @@ impl ADC {
             .write(|w| unsafe { w.bits(CHANNELS[channel] as u32) });
         while self.adc.sc1a.read().coco().bit_is_set() {} // wait for conversion
 
-        let value = ((self.adc.ra.read().bits() as f32) * MW_SCALAR) as u16;
-
-        // Necessary due to the previous sensor triggering the next in hardware (connected in serial); the MCU must not
-        // read the next sensor until a range has been recorded.
-        //
-        // TODO: move this out of this function
-        utils::sleep(10);
-
-        value
+        ((self.adc.ra.read().bits() as f32) * MW_SCALAR) as u16
     }
 }
