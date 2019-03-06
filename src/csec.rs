@@ -9,9 +9,6 @@
 //! * AES-CBC-128 encryption/decryption, and
 //! * MAC generation and verification.
 //!
-//! All public functions of this module return a `Result<(), CommandResult>`, except for
-//! `CSEc::verify_mac()` which returns a `Result<bool, CommandResult>`.
-//!
 //! Hardware used in this module is documented in the reference manual, § 35.6.13, p. 847.
 //!
 //! # Usage
@@ -26,7 +23,7 @@
 //!
 //! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
 //! csec.init_rng().unwrap();
-//! csec.generate_rnd(&mut rnd_buf).unwrap();
+//! rnd_buf = csec.generate_rnd().unwrap();
 //! assert!(!rnd_buf.iter().all(|x| *x == 0)); // very likely
 //! ```
 //!
@@ -70,6 +67,16 @@
 //! The provided key is loaded onto the board's RAM key slot. Multiple key slots are available, but
 //! support for those are not implemented.
 //!
+//! - MAC generation/verification
+//!
+//! This module can generate a `[u8; 16]` containing a calculated MAC (message authentication code)
+//! for an `[u8]` input of a length up to 32B.
+//! ```rust
+//! let plaintext: &[u8] = "Key:0123456789ab-666".as_bytes();
+//! let cmac = csec.generate_mac(&plaintext).unwrap();
+//! assert!(csec.verify_mac(&plaintext, &cmac).unwrap());
+//! ```
+//!
 //! # Security
 //! During encryption the initialization vector must be random and unpredictable (for each
 //! message), and may be made public after encryption. It is then recommended to use the output of
@@ -77,9 +84,6 @@
 //!
 //! The initialization vector is required for decryption, so it is recommended to prefix it to the
 //! sent message. Only the key is a secret.
-//!
-//! # TODO:
-//! - update this documentation
 #![allow(dead_code)]
 
 use s32k144;
@@ -87,13 +91,14 @@ use s32k144;
 /// CSEc commands which follow the same values as the SHE command defenition.
 #[derive(Debug, Clone, Copy)]
 enum Command {
-    /// Implemented!
     EncEcb = 0x01,
 
     /// Implemented!
     EncCbc,
 
     DecEcb,
+
+    /// Implemented!
     DecCbc,
 
     /// Implemented!
