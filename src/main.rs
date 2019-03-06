@@ -77,20 +77,31 @@ const APP: () = {
         let can = resources.CAN;
         let csec = resources.CSEC;
 
-        let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
-        u8_array_from_16_array(&adc.read(), &mut sensor_bytes);
+        let mut payload: [u8;
+            16 + // message Authentication code
+            16 + // initialization vector
+            adc::CHANNEL_COUNT * 2 // Two u16
+        ] = [0; 32 + adc::CHANNEL_COUNT * 2];
+
+        // let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        u8_array_from_16_array(&adc.read(), &mut payload[32..]);
 
         // Randomize our initialization vector.
         let mut init_vec: [u8; 16] = [0; 16];
         csec.generate_rnd(&mut init_vec).unwrap();
+        payload[16..32].clone_from_slice(&init_vec);
 
         // Encrypt the sensor data.
-        let mut payload: [u8; 16 + adc::CHANNEL_COUNT * 2] = [0; 16 + adc::CHANNEL_COUNT * 2];
-        csec.encrypt_cbc(&sensor_bytes, &init_vec, &mut payload[16..])
+        let mut encrypted: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        csec.encrypt_cbc(&payload[32..], &init_vec, &mut encrypted[..])
             .unwrap();
+        payload[32..].clone_from_slice(&encrypted);
 
-        // Transmit the payload, with a prefixed initialization vector.
-        payload[..16].clone_from_slice(&init_vec);
+        // Generate a MAC (Message Authentication Code) for our payload
+        let mut cmac: [u8; 16] = [0; 16];
+        csec.generate_mac(&payload[16..], &mut cmac).unwrap();
+        payload[..16].clone_from_slice(&cmac);
+
         can.transmit(&payload);
 
         schedule.poll_sensor(scheduled + PERIOD.cycles()).unwrap();
