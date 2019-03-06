@@ -3,12 +3,14 @@
 //! This module is an interface implementation for the board's hardware-accelerated cryptographic
 //! functions. It was derived from [Freescale's `security_pal/`
 //! example](https://gitlab.com/rust-daredevil-group/daredevil-small/tree/master/refs).
-//! A range of functions are silicon-supported, but this module currently only implements
+//! A range of functions are silicon-supported, but this module currently implements
 //! * random number generation,
-//! * plainkey loading into RAM slot, and
-//! * AES-CBC-128 encryption/decryption.
+//! * plainkey loading into RAM slot,
+//! * AES-CBC-128 encryption/decryption, and
+//! * MAC generation and verification.
 //!
-//! All public functions of this module return a `Result<(), CommandResult>`.
+//! All public functions of this module return a `Result<(), CommandResult>`, except for
+//! `CSEc::verify_mac()` which returns a `Result<bool, CommandResult>`.
 //!
 //! Hardware used in this module is documented in the reference manual, § 35.6.13, p. 847.
 //!
@@ -90,8 +92,13 @@ enum Command {
 
     DecEcb,
     DecCbc,
+
+    /// Implemented!
     GenerateMac,
+
+    /// Implemented!
     VerifyMac,
+
     LoadKey,
 
     /// Implemented!
@@ -224,6 +231,9 @@ const UPPER_HALF_MASK: u32 = 0xffff0000;
 const UPPER_HALF_SHIFT: u32 = 0x10;
 const BYTES_TO_PAGES_SHIFT: u32 = 4;
 const MAX_PAGES: usize = 7;
+const MAC_MESSAGE_LENGTH_OFFSET: usize = 0xc;
+const MAC_VERIFICATION_BITS_OFFSET: usize = PAGE_1_OFFSET + 0x4;
+const MAC_LENGTH_OFFSET: usize = 0x8;
 
 impl CSEc {
     pub fn init(ftfc: s32k144::FTFC, cse_pram: s32k144::CSE_PRAM) -> Self {
@@ -291,6 +301,96 @@ impl CSEc {
         plaintext: &mut [u8],
     ) -> Result<(), CommandResult> {
         self.handle_cbc(Command::DecCbc, ciphertext, init_vec, plaintext)
+    }
+
+    /// Generate a 128-bit Message Authentication Code for `input`.
+    pub fn generate_mac(&self, message: &[u8], cmac: &mut [u8]) -> Result<(), CommandResult> {
+        assert!(cmac.len() >= PAGE_SIZE_IN_BYTES && message.len() <= u32::max_value() as usize);
+
+        // Write how long our message is (in bits)
+        self.write_command_words(MAC_MESSAGE_LENGTH_OFFSET, &[(message.len() * 8) as u32]);
+
+        fn process_blocks(
+            cse: &CSEc,
+            message: &[u8],
+            sequence: Sequence,
+        ) -> Result<(), CommandResult> {
+            // How many bytes are we processing this round?
+            let bytes = core::cmp::min(message.len(), MAX_PAGES * PAGE_SIZE_IN_BYTES);
+
+            // Write out message bytes from `message` and process them.
+            cse.write_command_bytes(PAGE_1_OFFSET, &message[..bytes]);
+            cse.write_command_header(Command::GenerateMac, Format::Copy, sequence, KeyID::RamKey)?;
+
+            // Process remaining bytes, if any
+            if message.len() - bytes != 0 {
+                process_blocks(cse, &message[bytes..], Sequence::Subsequent)
+            } else {
+                Ok(())
+            }
+        }
+
+        process_blocks(self, message, Sequence::First)?;
+
+        // Read out calculated MAC
+        self.read_command_bytes(PAGE_2_OFFSET, &mut cmac[..PAGE_SIZE_IN_BYTES]);
+
+        Ok(())
+    }
+
+    /// Verify a message against a 128-bit Message Authentication Code.
+    pub fn verify_mac(&self, message: &[u8], cmac: &[u8; 16]) -> Result<bool, CommandResult> {
+        // A length of 0 is interpreted by SHE to compare all bits of `mac`.
+        assert!(message.len() > 0 && message.len() <= u32::max_value() as usize);
+
+        // Write how long our message is (in bits)
+        self.write_command_words(MAC_MESSAGE_LENGTH_OFFSET, &[(message.len() * 8) as u32]);
+
+        // Write the number of bits of the CMAC to be compared
+        self.write_command_halfword(MAC_LENGTH_OFFSET, (cmac.len() * 8) as u16);
+
+        // Write all n data blocks first, and write expected CMAC on page n + 1.
+        fn process_blocks(
+            cse: &CSEc,
+            message: &[u8],
+            cmac: &[u8],
+            sequence: Sequence,
+            mut mac_written: bool,
+        ) -> Result<bool, CommandResult> {
+            // How many bytes are we processing this round?
+            let bytes = core::cmp::min(message.len(), MAX_PAGES * PAGE_SIZE_IN_BYTES);
+
+            // Write our `message` bytes
+            cse.write_command_bytes(PAGE_1_OFFSET, &message[..bytes]);
+
+            // Which page is the next, rounded up?
+            let next_page = (PAGE_1_OFFSET + bytes + PAGE_SIZE_IN_BYTES - 1) / PAGE_SIZE_IN_BYTES;
+            if !mac_written && next_page < MAX_PAGES {
+                // All data blocks has been written, append the expected CMAC.
+                cse.write_command_bytes(next_page * PAGE_SIZE_IN_BYTES, &cmac);
+                mac_written = true;
+            }
+
+            cse.write_command_header(Command::VerifyMac, Format::Copy, sequence, KeyID::RamKey)?;
+
+            // Read verification status bits
+            let success = cse.read_command_halfword(MAC_VERIFICATION_BITS_OFFSET) == 0;
+
+            // Process remaining blocks until expected CMAC has been written.
+            if !mac_written {
+                process_blocks(
+                    cse,
+                    &message[bytes..],
+                    cmac,
+                    Sequence::Subsequent,
+                    mac_written,
+                )
+            } else {
+                Ok(success)
+            }
+        }
+
+        process_blocks(self, message, cmac, Sequence::First, false)
     }
 
     fn handle_cbc(
@@ -365,7 +465,9 @@ impl CSEc {
             | Command::Rng
             | Command::LoadPlainKey
             | Command::EncCbc
-            | Command::DecCbc => (),
+            | Command::DecCbc
+            | Command::GenerateMac
+            | Command::VerifyMac => (),
             _ => unimplemented!("Command {:?}", cmd),
         };
 
@@ -384,6 +486,16 @@ impl CSEc {
         match status {
             CommandResult::NoError => Ok(()),
             _ => Err(status),
+        }
+    }
+
+    /// Write 32-bit words to `CSE_PRAM` starting at an offset.
+    fn write_command_words(&self, offset: usize, words: &[u32]) {
+        for i in 0..words.len() {
+            let upper = ((words[i] & 0xffff0000) >> 16) as u16;
+            let lower = ((words[i] & 0xffff) >> 0) as u16;
+            self.write_command_halfword(offset, upper);
+            self.write_command_halfword(offset + 2, lower);
         }
     }
 
