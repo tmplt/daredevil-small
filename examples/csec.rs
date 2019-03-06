@@ -43,19 +43,17 @@ unsafe fn main() -> ! {
 
     let plaintext: &[u8] = "Key:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789ab6666666".as_bytes();
 
-    let mut rnd_buf: [u8; 16] = [0; 16];
-    let mut cmac: [u8; 16] = [0; 16];
     let mut enctext: [u8; MSG_LEN] = [0; MSG_LEN];
     let mut dectext: [u8; MSG_LEN] = [0; MSG_LEN];
 
     let csec = csec::CSEc::init(p.FTFC, p.CSE_PRAM);
     csec.init_rng().unwrap();
-    csec.generate_rnd(&mut rnd_buf).unwrap();
+    let rnd_buf = csec.generate_rnd().unwrap();
     csec.load_plainkey(&PLAINKEY).unwrap();
     csec.encrypt_cbc(&plaintext, &rnd_buf, &mut enctext)
         .unwrap();
     csec.decrypt_cbc(&enctext, &rnd_buf, &mut dectext).unwrap();
-    csec.generate_mac(&plaintext, &mut cmac).unwrap();
+    let cmac = csec.generate_mac(&plaintext).unwrap();
 
     assert!(csec.verify_mac(&plaintext, &cmac).unwrap());
     assert!(plaintext == &dectext[..]);

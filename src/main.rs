@@ -87,8 +87,7 @@ const APP: () = {
         u8_array_from_16_array(&adc.read(), &mut payload[32..]);
 
         // Randomize our initialization vector.
-        let mut init_vec: [u8; 16] = [0; 16];
-        csec.generate_rnd(&mut init_vec).unwrap();
+        let init_vec = csec.generate_rnd().unwrap();
         payload[16..32].clone_from_slice(&init_vec);
 
         // Encrypt the sensor data.
@@ -98,8 +97,7 @@ const APP: () = {
         payload[32..].clone_from_slice(&encrypted);
 
         // Generate a MAC (Message Authentication Code) for our payload
-        let mut cmac: [u8; 16] = [0; 16];
-        csec.generate_mac(&payload[16..], &mut cmac).unwrap();
+        let cmac = csec.generate_mac(&payload[16..]).unwrap();
         payload[..16].clone_from_slice(&cmac);
 
         can.transmit(&payload);

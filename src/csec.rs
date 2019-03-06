@@ -77,6 +77,9 @@
 //!
 //! The initialization vector is required for decryption, so it is recommended to prefix it to the
 //! sent message. Only the key is a secret.
+//!
+//! # TODO:
+//! - update this documentation
 #![allow(dead_code)]
 
 use s32k144;
@@ -256,7 +259,7 @@ impl CSEc {
 
     /// Generates a vector of 128 random bits.
     /// This function must be called after `init_rng`.
-    pub fn generate_rnd(&self, buf: &mut [u8; 16]) -> Result<(), CommandResult> {
+    pub fn generate_rnd(&self) -> Result<([u8; 16]), CommandResult> {
         self.write_command_header(
             Command::Rng,
             Format::Copy,
@@ -265,9 +268,10 @@ impl CSEc {
         )?;
 
         // Read the resulted random bytes
-        self.read_command_bytes(PAGE_1_OFFSET, buf);
+        let mut buf: [u8; 16] = [0; 16];
+        self.read_command_bytes(PAGE_1_OFFSET, &mut buf);
 
-        Ok(())
+        Ok(buf)
     }
 
     /// Updates the RAM key memory slot with a 128-bit plaintext.
@@ -304,8 +308,8 @@ impl CSEc {
     }
 
     /// Generate a 128-bit Message Authentication Code for `input`.
-    pub fn generate_mac(&self, message: &[u8], cmac: &mut [u8]) -> Result<(), CommandResult> {
-        assert!(cmac.len() >= PAGE_SIZE_IN_BYTES && message.len() <= u32::max_value() as usize);
+    pub fn generate_mac(&self, message: &[u8]) -> Result<[u8; 16], CommandResult> {
+        assert!(message.len() <= u32::max_value() as usize);
 
         // Write how long our message is (in bits)
         self.write_command_words(MAC_MESSAGE_LENGTH_OFFSET, &[(message.len() * 8) as u32]);
@@ -333,9 +337,10 @@ impl CSEc {
         process_blocks(self, message, Sequence::First)?;
 
         // Read out calculated MAC
-        self.read_command_bytes(PAGE_2_OFFSET, &mut cmac[..PAGE_SIZE_IN_BYTES]);
+        let mut cmac: [u8; 16] = [0; 16];
+        self.read_command_bytes(PAGE_2_OFFSET, &mut cmac);
 
-        Ok(())
+        Ok(cmac)
     }
 
     /// Verify a message against a 128-bit Message Authentication Code.
