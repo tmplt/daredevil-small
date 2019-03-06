@@ -134,6 +134,7 @@ unsafe fn main() -> ! {
     //p.CAN0.mcr.write(|w| w.bits(0x0000081F));
 
     // TODO: Lookup what is wrong with SVD2Rust in this case
+    #[rustfmt::skip]
     p.CAN0.mcr.write(|w| {
         w.mdis()._0()
             .frz()._0() // Disable Freeze
