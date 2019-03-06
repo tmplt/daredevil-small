@@ -83,8 +83,8 @@ const APP: () = {
             adc::CHANNEL_COUNT * 2 // Two u16
         ] = [0; 32 + adc::CHANNEL_COUNT * 2];
 
-        // let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
-        u8_array_from_16_array(&adc.read(), &mut payload[32..]);
+        let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        u8_array_from_16_array(&adc.read(), &mut sensor_bytes);
 
         // Randomize our initialization vector.
         let init_vec = csec.generate_rnd().unwrap();
@@ -92,7 +92,7 @@ const APP: () = {
 
         // Encrypt the sensor data.
         let mut encrypted: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
-        csec.encrypt_cbc(&payload[32..], &init_vec, &mut encrypted[..])
+        csec.encrypt_cbc(&sensor_bytes, &init_vec, &mut encrypted[..])
             .unwrap();
         payload[32..].clone_from_slice(&encrypted);
 
