@@ -24,3 +24,4 @@ features = ["timer-queue"]
 
 [patch.crates-io]
 s32k144evb = { git = "https://gitlab.com/rust-daredevil-group/mirrors/s32k144evb", branch = "daredevil" }
+s32k144 = { git = "https://gitlab.com/rust-daredevil-group/mirrors/s32k144", branch = "master" }
