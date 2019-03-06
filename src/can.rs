@@ -7,6 +7,9 @@ use s32k144;
 
 const MSG_BUF_SIZE: usize = 18;
 
+/// The maximum data in bytes that can be sent in a single frame.
+const MAX_MSG_LENGTH: usize = 64;
+
 pub struct CAN {
     can: s32k144::CAN0,
 }
@@ -97,16 +100,15 @@ impl CAN {
 
     pub fn transmit(&self, payload: &[u8]) {
         unsafe {
-            // Clear interrupt flag, sending the message
+            // Clear interrupt flag
             self.can.iflag1.write(|w| w.bits(0x1));
 
             // Write headers?
             self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 1].write(|w| w.bits(0x15540000));
-            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 0].write(|w| w.bits(0xcc4f0000 | (8 << 16)));
 
             // Write the payload into [u8; 4] sections
-            for i in 0..core::cmp::min(64, payload.len()) {
-                self.can.embedded_ram[(0 * MSG_BUF_SIZE) + (i / 4)].modify(|_, w| match i % 4 {
+            for i in 0..core::cmp::min(MAX_MSG_LENGTH, payload.len()) {
+                self.can.embedded_ram[2 + (i / 4)].modify(|_, w| match i % 4 {
                     0 => w.data_byte_0().bits(payload[i]),
                     1 => w.data_byte_1().bits(payload[i]),
                     2 => w.data_byte_2().bits(payload[i]),
@@ -114,6 +116,11 @@ impl CAN {
                     _ => unreachable!(),
                 });
             }
+
+            // send frame
+            self.can.embedded_ram[(0 * MSG_BUF_SIZE) + 0].write(|w| w.bits(0xcc4f0000 | (8 << 16)));
+
+            // TODO: wait until message has been sent
         }
     }
 }
