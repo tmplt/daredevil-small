@@ -5,7 +5,10 @@
 //! stage.
 //!
 //! TODO: find some way to write HardFault debug info over serial. FreeRTOS apparently manages
-//! this, and so should we.
+//! this, and so could we.
+//!
+//! Note: this panic handler panics seemingly if the clock has been configured in a manner that is
+//! unsupported by the board support crate.
 //!
 //! ---
 //!

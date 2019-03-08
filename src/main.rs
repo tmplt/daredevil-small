@@ -40,11 +40,11 @@
 use rtfm::{app, Instant};
 use s32k144::Interrupt;
 use s32k144evb::wdog;
+use panic_halt;
 
 pub mod adc;
 pub mod can;
 pub mod csec;
-pub mod panic;
 pub mod scg;
 pub mod utils;
 
