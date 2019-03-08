@@ -1,10 +1,10 @@
 # Daredevil-small
 
 This repository constitutes the sources for the sensor array module of Daredevil (the *light/small* EVITA module),
-a [S32K144EVB-Q100 MCU](https://www.nxp.com/support/developer-resources/evaluation-and-development-boards/analog-toolbox/s32k144-evaluation-board:S32K144EVB) (microcontroller unit) that will read ranges from ultrasonic sensors and propagate that data over CAN-FD to an external entity.
+a [S32K144EVB-Q100 MCU](https://www.nxp.com/support/developer-resources/evaluation-and-development-boards/analog-toolbox/s32k144-evaluation-board:S32K144EVB) (microcontroller unit) that read ranges from ultrasonic sensors and propagate that data over CAN-FD to an external entity.
 
 ## Documentation
-All code in this repo is (read: will be) heavily documented, including examples.
+All code in this repository is thoroughly documented, including examples.
 Run `cargo doc [--no-deps] --document-private-items --open` to build and open all relevant documentation in your web browser.
 Crate documentation presumes that this README has been read.
 
