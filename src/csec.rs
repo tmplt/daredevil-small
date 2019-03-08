@@ -1,4 +1,4 @@
-//! On-board Cryptographic Service Engine (CSEc)
+//! # On-board Cryptographic Service Engine (CSEc)
 //!
 //! This module is an interface implementation for the board's hardware-accelerated cryptographic
 //! functions. It was derived from [Freescale's `security_pal/`
@@ -11,7 +11,7 @@
 //!
 //! Hardware used in this module is documented in the reference manual, § 35.6.13, p. 847.
 //!
-//! # Usage
+//! ## Usage
 //!
 //! - Random number generation
 //!
@@ -84,7 +84,7 @@
 //! assert!(csec.verify_mac(&plaintext, &cmac).unwrap());
 //! ```
 //!
-//! # Security
+//! ## Security
 //! During encryption the initialization vector must be random and unpredictable (for each
 //! message), and may be made public after encryption. It is then recommended to use the output of
 //! `generate_rnd()` as the initialization vector for an encryption.
@@ -92,13 +92,13 @@
 //! The initialization vector is required for decryption, so it is recommended to prefix it to the
 //! sent message. Only the key is a secret.
 //!
-//! # Hardware API
+//! ## Hardware API
 //! The API for the CSEc is 7 "pages" of 128-bit each in FTFC PRAM. Prefixed to these pages is a command header.
 //! To run a CSEc operation, data to be processed should first be written to these pages after
 //! which the wanted operation, along with eventual operation arguments, are written to the command
 //! header. See the images below.
 //!
-//! # Notes on improvement
+//! ## Notes on improvement
 //! The generated PAC (peripheral access crate; `s32k144`) does not allow us to index the PRAM, forcing us to
 //! write function like `read_pram()`, `write_pram()` and similar. While these work, module quality would improve
 //! if the board's SVD file is edited so we can index each page.
