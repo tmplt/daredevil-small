@@ -38,9 +38,6 @@
 //! initialization vector (also `[u8; 16]`) has been provided.
 //!
 //! ```rust
-//! #[macro_use]
-//! extern crate arrayref;
-//!
 //! mod csec;
 //!
 //! // Example key
@@ -54,24 +51,34 @@
 //! let mut enctext: [u8; 20] = [0; 20];
 //! let mut dectext: [u8; 20] = [0; 20];
 //!
-//!
 //! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
+//! let rnd_buf = csec.generate_rnd().unwrap();
 //! csec.load_plainkey(&PLAINKEY).unwrap();
-//! csec.encrypt_cbc(&plaintext, array_ref![initvct, 0, 20], &mut enctext)
+//! csec.encrypt_cbc(&plaintext, &rnd_buf, &mut enctext)
 //!     .unwrap();
-//! csec.decrypt_cbc(&enctext, array_ref![initvct, 0, 20], &mut dectext)
+//! csec.decrypt_cbc(&enctext, &rnd_buf, &mut dectext)
 //!     .unwrap();
 //! assert!(plaintext == &dectext[..]);
 //! ```
 //!
 //! The provided key is loaded onto the board's RAM key slot. Multiple key slots are available, but
-//! support for those are not implemented.
+//! support for those are not yet implemented.
 //!
 //! - MAC generation/verification
 //!
 //! This module can generate a `[u8; 16]` containing a calculated MAC (message authentication code)
-//! for an `[u8]` input of a length up to 32B.
+//! for an `[u8]` input of a length up to 32B, and a loaded key.
 //! ```rust
+//! mod csec;
+//!
+//! const PLAINKEY: [u8; 16] = [
+//!     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f,
+//!     0x3c,
+//! ];
+//!
+//! let csec = csec::CSEc::init(&p.FTFC, &p.CSE_PRAM);
+//! csec.load_plainkey(&PLAINKEY).unwrap();
+//!
 //! let plaintext: &[u8] = "Key:0123456789ab-666".as_bytes();
 //! let cmac = csec.generate_mac(&plaintext).unwrap();
 //! assert!(csec.verify_mac(&plaintext, &cmac).unwrap());
@@ -84,6 +91,14 @@
 //!
 //! The initialization vector is required for decryption, so it is recommended to prefix it to the
 //! sent message. Only the key is a secret.
+//!
+//! # Hardware API
+//! The API for the CSEc is 7 "pages" of 128-bit each in FTFC PRAM. Prefixed to these pages is a command header.
+//! To run a CSEc operation, data to be processed should first be written to these pages after
+//! which the wanted operation, along with eventual operation arguments, are written to the command
+//! header. See the images below.
+//!
+//! # Notes on improvement
 #![allow(dead_code)]
 
 use s32k144;
@@ -546,7 +561,7 @@ impl CSEc {
             0x1 => page[1], // LU
             0x2 => page[2], // HL
             0x3 => page[3], // HU
-            _ => panic!(),  // absurd
+            _ => unreachable!(),
         }
     }
 
@@ -559,7 +574,7 @@ impl CSEc {
             0x1 => [page[0], byte, page[2], page[3]], // LU
             0x2 => [page[0], page[1], byte, page[3]], // HL
             0x3 => [page[0], page[1], page[2], byte], // HU
-            _ => panic!(),                            // absurd
+            _ => unreachable!(),
         };
 
         self.write_pram(offset >> 2, &page)
@@ -641,7 +656,7 @@ impl CSEc {
             29 => self.cse_pram.embedded_ram29.read().bits(),
             30 => self.cse_pram.embedded_ram30.read().bits(),
             31 => self.cse_pram.embedded_ram31.read().bits(),
-            _ => panic!(), // absurd
+            _ => unreachable!(),
         };
 
         u8_be_array_from_u32(page)
@@ -684,7 +699,7 @@ impl CSEc {
             29 => self.cse_pram.embedded_ram29.write(|w| unsafe { w.bits(bytes) }),
             30 => self.cse_pram.embedded_ram30.write(|w| unsafe { w.bits(bytes) }),
             31 => self.cse_pram.embedded_ram31.write(|w| unsafe { w.bits(bytes) }),
-            _ => panic!(),  // absurd
+            _ => unreachable!(),
         };
     }
 }
