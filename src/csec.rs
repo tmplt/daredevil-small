@@ -99,6 +99,9 @@
 //! header. See the images below.
 //!
 //! # Notes on improvement
+//! The generated PAC (peripheral access crate; `s32k144`) does not allow us to index the PRAM, forcing us to
+//! write function like `read_pram()`, `write_pram()` and similar. While these work, module quality would improve
+//! if the board's SVD file is edited so we can index each page.
 #![allow(dead_code)]
 
 use s32k144;
