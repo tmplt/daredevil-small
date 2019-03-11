@@ -48,7 +48,7 @@ pub mod csec;
 pub mod scg;
 pub mod utils;
 
-const PERIOD: u32 = 8_000;
+const PERIOD: u32 = 10_000_000;
 
 /// Key used for data encryption and MAC generation.
 const PLAINKEY: [u8; 16] = [
