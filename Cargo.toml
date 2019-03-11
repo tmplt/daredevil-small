@@ -12,7 +12,7 @@ embedded_types = "0.3.2"
 
 [dependencies.cortex-m]
 version = "0.5.0"
-# features = ["inline-asm"]
+features = ["inline-asm"]
 
 [dependencies.s32k144evb]
 version = "0.7.0"
