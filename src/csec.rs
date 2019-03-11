@@ -34,8 +34,9 @@
 //!
 //! - AES-CBC-128 encryption/decryption
 //!
-//! This module can encrypt/decrypt a `[u8]` of any size after a key (`[u8; 16]`) has been loaded and an
-//! initialization vector (also `[u8; 16]`) has been provided.
+//! This module can encrypt/decrypt a `[u8]` of a size which is an integer multiple of 16
+//! after a key (`[u8; 16]`) has been loaded and an initialization vector
+//! (also `[u8; 16]`) has been provided.
 //!
 //! ```rust
 //! mod csec;
@@ -46,7 +47,7 @@
 //!     0x3c,
 //! ];
 //!
-//! let plaintext: &[u8] = "Key:0123456789ab-666".as_bytes();
+//! let plaintext: &[u8] = "Key:0123456789ab".as_bytes();
 //! let initvct: &[u8] = "1234567887654321".as_bytes();
 //! let mut enctext: [u8; 20] = [0; 20];
 //! let mut dectext: [u8; 20] = [0; 20];
@@ -428,7 +429,12 @@ impl CSEc {
         init_vec: &[u8; PAGE_SIZE_IN_BYTES],
         output: &mut [u8],
     ) -> Result<(), CommandResult> {
-        assert!(output.len() >= input.len());
+        assert!(output.len() == input.len());
+        assert!(output.len() % 16 == 0);
+        assert!(
+            (input.len() >> BYTES_TO_PAGES_SHIFT) as u16 <= u16::max_value(),
+            "Encryption/decryption input too long"
+        );
 
         // Write the initialization vector and how many pages we are going to process
         self.write_command_bytes(PAGE_1_OFFSET, init_vec);
@@ -453,8 +459,10 @@ impl CSEc {
                 (PAGE_1_OFFSET, MAX_PAGES)
             };
 
-            // How many bytes are we processing this round?
-            let bytes = core::cmp::min(input.len(), avail_pages * PAGE_SIZE_IN_BYTES);
+            // How many bytes are we processing this round? At least one page of bytes must be
+            // processed.
+            let bytes = core::cmp::min(input.len() >> BYTES_TO_PAGES_SHIFT, avail_pages)
+                * PAGE_SIZE_IN_BYTES;
 
             // Write our input bytes from `input`, process them, and read the processed bytes into
             // `output`.

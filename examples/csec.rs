@@ -23,7 +23,7 @@ mod scg;
 #[path = "../src/utils.rs"]
 mod utils;
 
-const MSG_LEN: usize = 16 * 10 + 7;
+const MSG_LEN: usize = 16 * 10;
 const PLAINKEY: [u8; 16] = [
     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
 ];
@@ -41,7 +41,7 @@ unsafe fn main() -> ! {
 
     scg::configure_spll_clock(&p.SCG);
 
-    let plaintext: &[u8] = "Key:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789ab6666666".as_bytes();
+    let plaintext: &[u8] = "Key:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789abKey:0123456789ab".as_bytes();
 
     let mut enctext: [u8; MSG_LEN] = [0; MSG_LEN];
     let mut dectext: [u8; MSG_LEN] = [0; MSG_LEN];
