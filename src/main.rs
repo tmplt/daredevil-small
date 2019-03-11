@@ -37,10 +37,10 @@
 #![no_main]
 #![no_std]
 
+use panic_halt;
 use rtfm::{app, Instant};
 use s32k144::Interrupt;
 use s32k144evb::wdog;
-use panic_halt;
 
 pub mod adc;
 pub mod can;
@@ -117,10 +117,10 @@ const APP: () = {
         let mut payload: [u8;
             16 + // message Authentication code
             16 + // initialization vector
-            adc::CHANNEL_COUNT * 2 // Two u16
-        ] = [0; 32 + adc::CHANNEL_COUNT * 2];
+            16 // encrypted sensor data
+        ] = [0; 48];
 
-        let mut sensor_bytes: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        let mut sensor_bytes = [0u8; 16];
         u8_array_from_16_array(&adc.read(), &mut sensor_bytes);
 
         // Randomize our initialization vector.
@@ -128,10 +128,10 @@ const APP: () = {
         payload[16..32].clone_from_slice(&init_vec);
 
         // Encrypt the sensor data.
-        let mut encrypted: [u8; adc::CHANNEL_COUNT * 2] = [0; adc::CHANNEL_COUNT * 2];
+        let mut encrypted = [0u8; 16];
         csec.encrypt_cbc(&sensor_bytes, &init_vec, &mut encrypted[..])
             .unwrap();
-        payload[32..].clone_from_slice(&encrypted);
+        payload[32..48].clone_from_slice(&encrypted);
 
         // Generate a MAC (Message Authentication Code) for our payload
         let cmac = csec.generate_mac(&payload[16..]).unwrap();
