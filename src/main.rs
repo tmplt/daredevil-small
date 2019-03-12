@@ -1,7 +1,7 @@
 //! # Daredevil *light/small*, sensor array module
 //!
 //! This crate constitutes the embedded application of the sensor array module for the Daredevil
-//! project, acting as the EVITA *light/small* compliant module. Once every 1/8 second this application
+//! project, acting as the EVITA *light/small* compliant module. Once every 1/8 second this application:
 //! 1. reads ultrasonic range sensor data from four ADC (analog-to-digital converter) channels;
 //! 2. randomizes a `[u8; 16]` initialization vector in preparation for AES-CBC-128 encryption;
 //! 3. encrypts the sensor data for the `PLAINKEY: [u8; 16]` constant;
@@ -16,9 +16,9 @@
 //! Every second this application sends a CAN-FD frame containing 64B of data. 48B of which
 //! contains useful data. The frame contains
 //! the following data:
-//! - `frame[0..16]`: message authentication code;
-//! - `frame[16..32]`: initialization vector for encrypted data;
-//! - `frame[32..48]`: encrypted sensor data, and
+//! - `frame[0..16]`: message authentication code (MAC);
+//! - `frame[16..32]`: initialization vector (IV) for AES-CBC-128 encrypted data;
+//! - `frame[32..48]`: AES encrypted sensor data, and
 //! - `frame[48..64]`: unused, always 0.
 //!
 //! To process a frame, the MAC (`frame[0..16]`) should be verified for `frame[16..48]` and the
@@ -40,21 +40,21 @@
 //! Rust promises a lot of safety when writing a program, but those promises are invalidated if the program overflows the stack.
 //! We should ensure that the stack our program uses does not exceed available memory on-board.
 //! The stack usage of `daredevil-small` can be analysed via [`cargo call-stack`](https://github.com/japaric/cargo-call-stack)
-//! and `cargo size`. Install the utilities via
+//! and `cargo size`. Install the utilities via:
 //! ```
 //! rustup component add llvm-tools-preview
 //! cargo +stable install call-stack
 //! ```
 //!
 //! Before continuing, enable the `inline-asm` feature of the `cortex-m` dependency by altering
-//! `../Cargo.toml` to contain
+//! the `Cargo.toml` to contain:
 //! ```
 //! [dependencies.cortex-m]
 //! version = "0.5.0"
 //! features = ["inline-asm"]
 //! ```
 //! This feature will give more information to `call-stack`, allowing for a more accurate stack
-//! analysis. Now, run `cargo +nightly call-stack --bin daredevil-mall > cg.dot`. `cg.dot` now
+//! analysis. Now, run `cargo +nightly call-stack --bin daredevil-small > cg.dot`. `cg.dot` now
 //! contains a call-graph description of the program in the [DOT language](https://en.wikipedia.org/wiki/DOT_(graph_description_language)).
 //! An example output (from commit `963ab26`) is the following:
 //! ```
@@ -126,7 +126,7 @@
 //! `daredevil-small` during run-time. However, some additional stack is used when interrupts are handled. The exact value is documented
 //! in the reference manual of the board's processor family, but here we'll use a lump sum of 1K additional stack usage for simplicity.
 //!
-//! The `daredevil-small` binary itself will also store some data in the board's available memory. We find the exact number of bytes via
+//! The `daredevil-small` binary itself will also store some data in the board's available memory. We find the exact number of bytes via:
 //! ```
 //! $ cargo size --bin daredevil-small --release
 //!    text    data     bss     dec     hex filename
@@ -134,7 +134,7 @@
 //! ```
 //! From this output the `data` and `bss` sections will be stored in memory. The final amount of bytes that will be stored on the stack
 //! is then `240 + 80 + 0 + 1000 + 3020 + 92 = 4432`. From `../memory.x` we can read that we have 16K of available memory.
-//! And since `4432 <= 16000` we do not overflow the available stack and thus we are ensured the promises of programming in Rust.
+//! And since `4432 <= 16000` we do not overflow the available stack and thus we have ensured the promises of programming in Rust.
 #![no_main]
 #![no_std]
 
