@@ -1,3 +1,8 @@
+# This file is a Nix port of the binary blobs for JLink.
+# It is messy, unfinished and should not necessarily be relied upon.
+# Only what is necessary for the toolchain of Daredevil (JLinkGDBServerCLExe,
+# RTTClientExe) are confirmed to work. Remaining binaries are unlikely to be linked correctly.
+
 { stdenv, dpkg, buildFHSUserEnv, udev, fetchurl, buildEnv }:
 
 let
