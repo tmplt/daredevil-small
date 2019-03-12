@@ -1,7 +1,7 @@
 //! # Daredevil *light/small*, sensor array module
 //!
 //! This crate constitutes the embedded application of the sensor array module for the Daredevil
-//! project, acting as the EVITA *light/small* compliant module. Once every second this application
+//! project, acting as the EVITA *light/small* compliant module. Once every 1/8 second this application
 //! 1. reads ultrasonic range sensor data from four ADC (analog-to-digital converter) channels;
 //! 2. randomizes a `[u8; 16]` initialization vector in preparation for AES-CBC-128 encryption;
 //! 3. encrypts the sensor data for the `PLAINKEY: [u8; 16]` constant;
@@ -13,23 +13,24 @@
 //! be written.
 //!
 //! ## CAN-FD frame data
-//! Every second this application sends a CAN-FD frame containing 64B of data. 40B of which
+//! Every second this application sends a CAN-FD frame containing 64B of data. 48B of which
 //! contains useful data. The frame contains
 //! the following data:
 //! - `frame[0..16]`: message authentication code;
 //! - `frame[16..32]`: initialization vector for encrypted data;
-//! - `frame[32..40]`: encrypted sensor data, and
-//! - `frame[40..64]`: unused, always 0.
+//! - `frame[32..48]`: encrypted sensor data, and
+//! - `frame[48..64]`: unused, always 0.
 //!
 //! To process a frame, the MAC (`frame[0..16]`) should be verified for `frame[16..48]` and the
 //! `PLAINKEY` constant. After a message has been verified to not have been modified in transit,
-//! the encrypted sensor data (`frame[32..64]`) should be encrypted using the initialization vector
-//! (`frame[16..32]`) and the `PLAINKEY` constant. When the data has been decrypted, the sensor
+//! the encrypted sensor data (`frame[32..48]`) should be decrypted using the initialization vector
+//! (`frame[16..32]`) and the `PLAINKEY` constant. When the data has been decrypted into a `data: [u8; 16]`,
 //! data should be parsed as follows:
-//! - `frame[32..34]`: sensor index 0;
-//! - `frame[34..36]`: sensor index 1;
-//! - `frame[36..38]`: sensor index 2, and
-//! - `frame[38..40]`: sensor index 3.
+//! - `data[0..2]`: sensor index 0;
+//! - `data[2..4]`: sensor index 1;
+//! - `data[4..6]`: sensor index 2;
+//! - `data[6..8]`: sensor index 3, and
+//! - `data[8..16]`: unused, always 0.
 //!
 //! Each sensor distance is encoded in Big-Endian.
 //!
