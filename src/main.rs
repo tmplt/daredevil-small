@@ -35,6 +35,106 @@
 //! Each sensor distance is encoded in Big-Endian.
 //!
 //! Refer to the `csec` module for CAN-FD transmission parameters.
+//!
+//! ## Stack usage
+//! Rust promises a lot of safety when writing a program, but those promises are invalidated if the program overflows the stack.
+//! We should ensure that the stack our program uses does not exceed available memory on-board.
+//! The stack usage of `daredevil-small` can be analysed via [`cargo call-stack`](https://github.com/japaric/cargo-call-stack)
+//! and `cargo size`. Install the utilities via
+//! ```
+//! rustup component add llvm-tools-preview
+//! cargo +stable install call-stack
+//! ```
+//!
+//! Before continuing, enable the `inline-asm` feature of the `cortex-m` dependency by altering
+//! `../Cargo.toml` to contain
+//! ```
+//! [dependencies.cortex-m]
+//! version = "0.5.0"
+//! features = ["inline-asm"]
+//! ```
+//! This feature will give more information to `call-stack`, allowing for a more accurate stack
+//! analysis. Now, run `cargo +nightly call-stack --bin daredevil-mall > cg.dot`. `cg.dot` now
+//! contains a call-graph description of the program in the [DOT language](https://en.wikipedia.org/wiki/DOT_(graph_description_language)).
+//! An example output (from commit `963ab26`) is the following:
+//! ```
+//! digraph {
+//!     node [fontname=monospace shape=box]
+//!     0 [label="DMA0\nmax = 240\nlocal = 208"]
+//!     1 [label="main\nmax = 80\nlocal = 48"]
+//!     2 [label="SysTick\nmax = 40\nlocal = 40"]
+//!     3 [label="daredevil_small::csec::CSEc::write_command_bytes\nmax = 32\nlocal = 32"]
+//!     4 [label="daredevil_small::__rtfm_internal_15::{{closure}}\nmax = 16\nlocal = 16"]
+//!     5 [label="daredevil_small::csec::CSEc::read_command_bytes\nmax = 8\nlocal = 8"]
+//!     6 [label="core::result::unwrap_failed::hbfd77e16ddb866fd\nmax = 0\nlocal = 0"]
+//!     7 [label="core::result::unwrap_failed::hc349ba809e82420c\nmax = 0\nlocal = 0"]
+//!     8 [label="core::result::unwrap_failed::hcece78b842d1e303\nmax = 0\nlocal = 0"]
+//!     9 [label="daredevil_small::csec::CSEc::write_command_header\nmax = 0\nlocal = 0"]
+//!     10 [label="Reset\nmax = 80\nlocal = 0"]
+//!     11 [label="ResetTrampoline\nmax = 80\nlocal = 0"]
+//!     12 [label="ADC0\nmax = 0\nlocal = 0"]
+//!     13 [label="DefaultPreInit\nmax = 0\nlocal = 0"]
+//!     14 [label="rust_begin_unwind\nmax = 0\nlocal = 0"]
+//!     15 [label="core::panicking::panic_bounds_check\nmax = 0\nlocal = 0"]
+//!     16 [label="core::panicking::panic_fmt\nmax = 0\nlocal = 0"]
+//!     17 [label="core::panicking::panic\nmax = 0\nlocal = 0"]
+//!     18 [label="HardFault\nmax = 0\nlocal = 0"]
+//!     19 [label="__aeabi_memset4\nmax = 16\nlocal = 8"]
+//!     20 [label="HardFaultTrampoline\nmax >= 0\nlocal = ?"]
+//!     21 [label="__aeabi_memset\nmax = 8\nlocal = 8"]
+//!     22 [label="__aeabi_memclr4\nmax = 16\nlocal = 0"]
+//!     7 -> 16
+//!     17 -> 16
+//!     3 -> 17
+//!     3 -> 15
+//!     16 -> 14
+//!     5 -> 17
+//!     8 -> 16
+//!     0 -> 16
+//!     0 -> 9
+//!     0 -> 7
+//!     0 -> 5
+//!     0 -> 3
+//!     0 -> 15
+//!     0 -> 8
+//!     0 -> 4
+//!     15 -> 16
+//!     10 -> 13
+//!     10 -> 11
+//!     9 -> 16
+//!     1 -> 16
+//!     1 -> 6
+//!     1 -> 9
+//!     1 -> 7
+//!     1 -> 3
+//!     1 -> 8
+//!     1 -> 4
+//!     2 -> 16
+//!     11 -> 1
+//!     6 -> 16
+//!     0 -> 22
+//!     19 -> 21
+//!     20 -> 18
+//!     22 -> 19
+//! }
+//! ```
+//!
+//! From this file we are interested in the `max` values of `DMA0` (interrupt used for the sensor polling task),
+//! `main` (the initialization function), and `HardFaultTrampoline` (exception handler entry in case of a `HardFault`);
+//! these nodes denote the function entry points of `daredevil-small` which may preempt eachother.
+//! From the above example, these values are 240, 80, and 0, respectively. Summing these values, we obtain the maximum stack usage of
+//! `daredevil-small` during run-time. However, some additional stack is used when interrupts are handled. The exact value is documented
+//! in the reference manual of the board's processor family, but here we'll use a lump sum of 1K additional stack usage for simplicity.
+//!
+//! The `daredevil-small` binary itself will also store some data in the board's available memory. We find the exact number of bytes via
+//! ```
+//! $ cargo size --bin daredevil-small --release
+//!    text    data     bss     dec     hex filename
+//!   13128    3020      92   16240    3f70 daredevil-small
+//! ```
+//! From this output the `data` and `bss` sections will be stored in memory. The final amount of bytes that will be stored on the stack
+//! is then `240 + 80 + 0 + 1000 + 3020 + 92 = 4432`. From `../memory.x` we can read that we have 16K of available memory.
+//! And since `4432 <= 16000` we do not overflow the available stack and thus we are ensured the promises of programming in Rust.
 #![no_main]
 #![no_std]
 
