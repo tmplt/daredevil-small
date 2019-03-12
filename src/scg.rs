@@ -1,4 +1,4 @@
-//! Ad-hoc SCG configuration
+//! Ad-hoc SCG configuration, direct C-to-Rust port of a reference RUN-mode of 80Mhz. Required for CAN-FD operation.
 
 use s32k144;
 

@@ -1,4 +1,4 @@
-//! Ad-hoc ADC implementation
+//! Ad-hoc ADC implementation, used only for configuring and reading Daredevil sensor data.
 
 use crate::utils;
 use s32k144;

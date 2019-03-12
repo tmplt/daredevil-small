@@ -1,4 +1,4 @@
-//! Ad-hoc CAN-FD implementation
+//! Ad-hoc CAN-FD implementation, used only for sending Daredevil data frames of 64B.
 //!
 //! Arbitration/nominal phase parameters:
 //! - 500 kbit/s, 80.0%,
