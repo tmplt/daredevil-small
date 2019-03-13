@@ -2,17 +2,41 @@
 # https://hub.docker.com/r/library/rust/tags/
 image: "rust:latest"
 
+stages:
+  - test
+  - stack-analysis
+
 before_script:
   - rustup default stable
   - rustup target add thumbv7em-none-eabihf
   - rustup component add rustfmt
 
-test:formatting:
+formatting:
+  stage: test
+
   script:
   - rustc --version && cargo --version
   - cargo fmt -- --check
 
-test:cargo-check:
+cargo-check:
+  stage: test
+
   script:
   - rustc --version && cargo --version
   - cargo check --all --examples
+
+
+stack-analysis:
+  stage: stack-analysis
+
+  before_script:
+    - rustup default nightly
+    - rustup target add thumbv7em-none-eabihf
+    - rustup default stable
+    - rustup target add thumbv7em-none-eabihf
+    - rustup component add llvm-tools-preview
+    - cargo install cargo-binutils
+    - cargo install --git https://github.com/japaric/cargo-call-stack
+
+  script:
+  - ./stack-analysis.sh
