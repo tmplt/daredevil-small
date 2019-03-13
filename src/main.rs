@@ -133,8 +133,13 @@
 //!   13128    3020      92   16240    3f70 daredevil-small
 //! ```
 //! From this output the `data` and `bss` sections will be stored in memory. The final amount of bytes that will be stored on the stack
-//! is then `240 + 80 + 0 + 1000 + 3020 + 92 = 4432`. From `../memory.x` we can read that we have 16K of available memory.
+//! is then `240 + 80 + 0 + 1000 + 3020 + 92 = 4432`. From `./memory.x` we can read that we have 16K of available memory.
 //! And since `4432 <= 16000` we do not overflow the available stack and thus we have ensured the promises of programming in Rust.
+//!
+//! Since commit `9184e3b`, the stack usage is automatically analysed via CI whenever a commit is
+//! pushed to `master` – refer to `./.gitlab-ci.yml` and `./etc/verify-stack-usage.sh`. If the
+//! built program uses more stack than what is available, the test exits with an error.
+//! It is highly recommended that this script is maintained.
 #![no_main]
 #![no_std]
 
