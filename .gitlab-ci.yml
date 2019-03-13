@@ -18,7 +18,7 @@ formatting:
   - rustc --version && cargo --version
   - cargo fmt -- --check
 
-cargo-check:
+building:
   stage: test
 
   script:
@@ -32,11 +32,12 @@ stack-analysis:
   before_script:
     - rustup default nightly
     - rustup target add thumbv7em-none-eabihf
+    - rustup component add llvm-tools-preview
     - rustup default stable
     - rustup target add thumbv7em-none-eabihf
     - rustup component add llvm-tools-preview
     - cargo install cargo-binutils
-    - cargo install --git https://github.com/japaric/cargo-call-stack
+    - cargo +stable install cargo-call-stack
 
   script:
-  - ./stack-analysis.sh
+  - ./etc/verify-stack-usage.sh

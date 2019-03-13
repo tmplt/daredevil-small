@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Verifies binary stack usage using cargo call-stack <https://github.com/japaric/cargo-call-stack>
+set -eou pipefail
 
 # Get the memory usage from built binary
 echo "Compiling in release to read memory usage from binary..."
-mem=$(cargo +nightly size --bin daredevil-small --release | tail -n 1 | awk '{print $2+$3}')
+size=$(cargo +nightly size --bin daredevil-small --release 2>&1)
+[[ $size == *"error"* ]] && echo $size && exit 1
+mem=$(echo $size | tail -n 1 | awk '{print $2+$3}')
 
 # Ugly hack to enable inline-asm features for cargo-call-stack
 sed -i 's/# features/features/g' Cargo.toml
@@ -26,7 +29,7 @@ main=$(grep "main" cg.dot | awk '{print $4}' | sed 's/\\nlocal//g')
 # Stack usage in hardfaults
 hf=$(grep "HardFaultTrampoline" cg.dot | awk '{print $4}' | sed 's/\\nlocal//g')
 
-total=$(($dma+$main+$interrupts+$hf+$mem))
+total=$((dma + main + interrupts + hf + mem))
 echo "Total memory usage: $total"
 
 # if $total >= $RAM
