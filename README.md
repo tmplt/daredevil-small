@@ -70,9 +70,11 @@ $ nix-shell shell.nix
 3. Start a GDB server by executing `./gdbserver.sh` in a separate shell instance.
 4. Program your application via `cargo run [--example <example-name>]`.
 
-The target application will be flashed automatically, and a breakpoint will be installed at the start of `main`.
+The target application will be flashed automatically (see `./gdbinit`), and a breakpoint will be installed at the start of `main`.
 
 If you wish to attach to the UART console, run `bobbin-cli console`.
+
+For instructions on how to connect sensors and read CAN output, please refer to the [overview documentation](https://gitlab.com/rust-daredevil-group/daredevil#how-to-get-started).
 
 ## License
 Licensed under either of
