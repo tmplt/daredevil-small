@@ -22,6 +22,8 @@ For every sensor array module, the following is needed:
 ### Software
 This crate expects your MCU to be flashed with a certain debug application.
 Please refer to [the flashing documentation](./doc/FLASHING.md) before continuing.
+Additionally, the security component of the MCU must be initialized alike the `csec_keyconfig_s32k144` demo from [S32 Design Studio for ARM](https://www.nxp.com/design/software/development-software/s32-design-studio-ide/s32-design-studio-for-arm:S32DS-ARM).
+An example for this repo should be written for convenience.
 
 A recent stable Rust tool chain is required (v1.32.0 or later).
 Install `rustup` via your system's preferred channels or by executing `curl https://sh.rustup.rs -sSf | sh` in a shell instance.
